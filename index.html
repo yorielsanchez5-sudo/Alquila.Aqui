@@ -1,0 +1,3026 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AlquilaAqui - Plataforma de Alquiler de Inmuebles</title>
+
+    <!-- Configuración visual y PWA -->
+    <meta name="theme-color" content="#0f766e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AlquilaAqui">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1216/1216895.png">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4', 300: '#5eead4', 400: '#2dd4bf',
+                            500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Iconos, Mapa Leaflet y Exportación PDF -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .property-card:hover { transform: translateY(-4px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        #explore-map, #detail-map { width: 100%; height: 100%; min-height: 260px; border-radius: 1rem; z-index: 10; }
+        @media print {
+            body * { visibility: hidden; }
+            #printable-contract, #printable-contract * { visibility: visible; }
+            #printable-contract { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+        }
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-login-card { animation: fadeSlideUp 0.35s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
+
+    <!-- ===================================================================== -->
+    <!-- 1. PANTALLA DE INICIO DE SESIÓN A PANTALLA COMPLETA                  -->
+    <!-- ===================================================================== -->
+    <div id="login-screen" class="fixed inset-0 w-screen h-[100dvh] z-50 bg-gradient-to-br from-slate-950 via-teal-950 to-slate-900 flex flex-col justify-between p-4 sm:p-8 overflow-y-auto">
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <div class="absolute -top-32 -left-32 w-[28rem] h-[28rem] bg-teal-500/20 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-cyan-500/20 rounded-full blur-3xl"></div>
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[36rem] h-[36rem] bg-emerald-600/10 rounded-full blur-3xl"></div>
+        </div>
+
+        <div class="relative z-10 w-full max-w-6xl mx-auto flex items-center justify-between text-white/80 text-xs sm:text-sm">
+            <div class="flex items-center gap-2 font-semibold">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>AlquilaAqui • Plataforma Inmobiliaria</span>
+                <span id="cloud-status-label" class="ml-2 rounded-full border border-white/20 px-2.5 py-0.5 text-[10px] bg-white/5">Modo Local Activo</span>
+            </div>
+            <button type="button" onclick="toggleDarkMode()" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition" title="Cambiar tema">
+                <i id="login-theme-icon" class="fa-solid fa-moon"></i>
+            </button>
+        </div>
+
+        <div class="relative z-10 w-full max-w-5xl mx-auto my-auto py-4">
+            <div class="animate-login-card grid grid-cols-1 lg:grid-cols-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/15 overflow-hidden">
+
+                <!-- Columna izquierda: Identidad -->
+                <div class="bg-gradient-to-br from-teal-700 via-teal-800 to-slate-900 text-white p-7 sm:p-10 flex flex-col justify-between">
+                    <div>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-teal-100 text-xs font-semibold mb-5">
+                            <i class="fa-solid fa-shield-check text-emerald-300"></i> Acceso Rápido y Seguro
+                        </span>
+
+                        <div class="flex items-center gap-3.5 mb-4">
+                            <div class="w-14 h-14 rounded-2xl bg-white text-teal-700 flex items-center justify-center shadow-lg shrink-0">
+                                <i class="fa-solid fa-house-chimney-window text-2xl"></i>
+                            </div>
+                            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">
+                                Alquila<span class="text-teal-300">Aqui</span>
+                            </h1>
+                        </div>
+
+                        <p class="text-sm sm:text-base text-teal-100/90 leading-relaxed mb-6">
+                            Explora apartamentos, casas, penthouses y locales en mapa interactivo; chatea directo con propietarios, agenda citas presenciales o virtuales y genera contratos en minutos.
+                        </p>
+                    </div>
+
+                    <ul class="space-y-3 text-xs sm:text-sm text-teal-50/90 border-t border-white/15 pt-5">
+                        <li class="flex items-center gap-2.5">
+                            <i class="fa-solid fa-circle-check text-emerald-300"></i>
+                            <span>Publicaciones verificadas mediante formulario y aprobación</span>
+                        </li>
+                        <li class="flex items-center gap-2.5">
+                            <i class="fa-solid fa-circle-check text-emerald-300"></i>
+                            <span>Mapa interactivo con pines, chat directo y agenda de citas</span>
+                        </li>
+                        <li class="flex items-center gap-2.5">
+                            <i class="fa-solid fa-circle-check text-emerald-300"></i>
+                            <span>Calculadora financiera, comparador y borrador de contrato en PDF</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Columna derecha: Opciones de inicio de sesión -->
+                <div class="p-7 sm:p-10 flex flex-col justify-center">
+                    <div class="mb-6 text-center lg:text-left">
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Bienvenido a AlquilaAqui</h2>
+                        <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Elige cómo deseas entrar a la plataforma
+                        </p>
+                    </div>
+
+                    <div id="login-options-panel" class="space-y-3.5">
+                        <button type="button" onclick="toggleEmailLoginForm(true)" class="w-full py-3.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.99] text-white font-semibold text-sm shadow-md shadow-teal-600/20 transition flex items-center justify-center gap-3">
+                            <i class="fa-solid fa-envelope text-base"></i>
+                            <span>Iniciar sesión o registrarse con correo</span>
+                        </button>
+
+                        <button type="button" onclick="loginWithFacebook()" class="w-full py-3.5 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] active:scale-[0.99] text-white font-semibold text-sm shadow-md shadow-blue-600/20 transition flex items-center justify-center gap-3">
+                            <i class="fa-brands fa-facebook text-lg"></i>
+                            <span>Continuar con Facebook</span>
+                        </button>
+
+                        <div class="relative py-2 flex items-center">
+                            <div class="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                            <span class="flex-shrink mx-3 text-xs uppercase tracking-wider text-gray-400">o</span>
+                            <div class="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                        </div>
+
+                        <button type="button" onclick="enterAsGuest()" class="w-full py-3.5 px-4 rounded-xl bg-gray-100 dark:bg-gray-700/80 hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.99] text-gray-800 dark:text-gray-100 font-semibold text-sm border border-gray-200 dark:border-gray-600 transition flex items-center justify-center gap-3">
+                            <i class="fa-regular fa-compass text-base text-teal-600 dark:text-teal-400"></i>
+                            <span>Entrar como invitado</span>
+                        </button>
+                    </div>
+
+                    <!-- Formulario Correo Electrónico -->
+                    <div id="email-login-form" class="hidden text-left space-y-4">
+                        <div class="grid grid-cols-2 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl text-xs font-semibold">
+                            <button type="button" id="auth-tab-login" onclick="switchAuthMode('login')" class="py-2 rounded-lg bg-white dark:bg-gray-800 text-teal-700 dark:text-teal-300 shadow-sm transition">
+                                Iniciar sesión
+                            </button>
+                            <button type="button" id="auth-tab-register" onclick="switchAuthMode('register')" class="py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition">
+                                Crear cuenta
+                            </button>
+                        </div>
+
+                        <form id="auth-email-submit-form" onsubmit="submitEmailAuth(event)" class="space-y-3.5">
+                            <div id="register-role-selector" class="hidden space-y-1.5">
+                                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">Tipo de cuenta</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button type="button" id="role-btn-tenant" onclick="selectLoginRole('tenant')" class="py-2.5 px-3 rounded-xl border-2 border-teal-600 bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 text-xs font-bold flex items-center justify-center gap-2 transition">
+                                        <i class="fa-solid fa-magnifying-glass-location"></i>
+                                        <span>Inquilino</span>
+                                    </button>
+                                    <button type="button" id="role-btn-owner" onclick="selectLoginRole('owner')" class="py-2.5 px-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 text-xs font-semibold flex items-center justify-center gap-2 hover:border-teal-500 transition">
+                                        <i class="fa-solid fa-house-flag"></i>
+                                        <span>Propietario</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="register-name-field" class="hidden">
+                                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Nombre completo</label>
+                                <div class="relative">
+                                    <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-gray-400 text-xs"></i>
+                                    <input type="text" id="login-name-input" placeholder="Ej: Carlos Pérez" class="w-full pl-9 pr-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Correo electrónico</label>
+                                <div class="relative">
+                                    <i class="fa-solid fa-envelope absolute left-3.5 top-3.5 text-gray-400 text-xs"></i>
+                                    <input type="email" id="login-email-input" required placeholder="tu@correo.com" class="w-full pl-9 pr-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">Contraseña</label>
+                                    <button type="button" onclick="handleForgotPassword()" class="text-[11px] font-medium text-teal-600 dark:text-teal-400 hover:underline">
+                                        ¿Olvidaste tu contraseña?
+                                    </button>
+                                </div>
+                                <div class="relative">
+                                    <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-gray-400 text-xs"></i>
+                                    <input type="password" id="login-pass-input" required minlength="4" placeholder="Ingresa tu contraseña" class="w-full pl-9 pr-10 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                                    <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs">
+                                        <i id="login-eye-icon" class="fa-regular fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="login-error-msg" class="hidden text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 px-3 py-2 rounded-xl"></div>
+
+                            <button type="submit" id="auth-submit-btn" class="w-full py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md transition">
+                                Entrar a AlquilaAqui
+                            </button>
+                        </form>
+
+                        <button type="button" onclick="toggleEmailLoginForm(false)" class="w-full py-2 text-xs font-medium text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-arrow-left"></i> Volver a todas las opciones
+                        </button>
+                    </div>
+
+                    <p class="mt-6 text-[11px] text-center lg:text-left text-gray-400 dark:text-gray-500">
+                        Al continuar aceptas los
+                        <button type="button" onclick="openInfoModal('terms')" class="underline hover:text-teal-600">Términos de Servicio</button> y
+                        <button type="button" onclick="openInfoModal('privacy')" class="underline hover:text-teal-600">Políticas de Privacidad</button> de AlquilaAqui.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="relative z-10 w-full max-w-6xl mx-auto text-center text-white/60 text-xs">
+            AlquilaAqui © 2026 • Todos los derechos reservados
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- 2. HEADER / NAVBAR                                                    -->
+    <!-- ===================================================================== -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-30 transition-colors duration-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="resetFiltersAndHome()">
+                    <div class="bg-primary-600 text-white p-2 rounded-xl shadow-md">
+                        <i class="fa-solid fa-building-user text-xl"></i>
+                    </div>
+                    <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-primary-800 dark:from-primary-400 dark:to-primary-200">AlquilaAqui</span>
+                </div>
+
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <!-- Botón Exclusivo Panel Admin (Solo visible para yorielsanchez5@gmail.com) -->
+                    <button id="nav-btn-admin" onclick="switchMainTab('admin')" class="hidden items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-md transition">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span class="hidden sm:inline">Panel Admin</span>
+                        <span id="admin-pending-badge-nav" class="hidden bg-amber-300 text-slate-950 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full">0</span>
+                    </button>
+
+                    <!-- Botón Chat Interactivo -->
+                    <button id="nav-btn-chat" onclick="openChatModal()" class="relative p-2 text-gray-600 dark:text-gray-300 hover:text-teal-600 transition" title="Chat Interactivo con Propietarios">
+                        <i class="fa-solid fa-comments text-xl"></i>
+                        <span id="chat-unread-badge" class="hidden absolute -top-1 -right-1 bg-teal-600 text-white text-[10px] font-bold rounded-full h-4 w-4 items-center justify-center">!</span>
+                    </button>
+
+                    <!-- Selector USD / RD$ -->
+                    <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-xl p-1 text-xs font-bold border border-gray-200 dark:border-gray-600" title="Moneda de visualización">
+                        <button type="button" id="currency-btn-USD" onclick="setDisplayCurrency('USD')" class="px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 text-teal-700 dark:text-teal-300 shadow-sm transition">USD</button>
+                        <button type="button" id="currency-btn-DOP" onclick="setDisplayCurrency('DOP')" class="px-2.5 py-1 rounded-lg text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition">RD$</button>
+                    </div>
+
+                    <button onclick="toggleDarkMode()" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition" title="Cambiar Tema">
+                        <i id="theme-icon" class="fa-solid fa-moon text-lg"></i>
+                    </button>
+
+                    <button id="nav-btn-calc" onclick="openCalculatorModal()" class="hidden md:flex items-center space-x-1.5 text-sm bg-primary-50 dark:bg-gray-700 text-primary-700 dark:text-primary-300 font-medium px-3 py-2 rounded-lg hover:bg-primary-100 transition">
+                        <i class="fa-solid fa-calculator"></i>
+                        <span>Calculadora</span>
+                    </button>
+
+                    <button id="nav-btn-compare" onclick="openCompareModal()" class="relative p-2 text-gray-600 dark:text-gray-300 hover:text-primary-600 transition" title="Comparar inmuebles">
+                        <i class="fa-solid fa-scale-balanced text-xl"></i>
+                        <span id="compare-count" class="absolute -top-1 -right-1 bg-primary-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                    </button>
+
+                    <div id="user-nav-container"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Barra de Aviso Modo Invitado -->
+    <div id="guest-readonly-banner" class="hidden bg-amber-500 text-slate-950 py-2.5 px-4 text-xs sm:text-sm shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div class="flex items-center gap-2 font-semibold text-center sm:text-left">
+                <i class="fa-solid fa-eye text-slate-900"></i>
+                <span>Modo Invitado: Solo puedes ver casas, mapa y detalles. Inicia sesión o regístrate para chatear, agendar citas o solicitar publicar.</span>
+            </div>
+            <button type="button" onclick="logoutUser()" class="bg-slate-950 hover:bg-slate-800 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition whitespace-nowrap shadow-sm">
+                Iniciar sesión / Registrarme
+            </button>
+        </div>
+    </div>
+
+    <!-- Barra rápida superior (Usuarios registrados) -->
+    <div id="registered-quick-bar" class="hidden bg-primary-900 text-white py-2 px-4 text-xs sm:text-sm text-center flex justify-between items-center max-w-7xl mx-auto w-full rounded-b-lg shadow-inner">
+        <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar py-1">
+            <span class="bg-primary-700 px-2 py-0.5 rounded text-xs font-semibold">VERIFICACIÓN</span>
+            <span>Para publicar un inmueble debes llenar el formulario de solicitud y ser aceptado por revisión.</span>
+        </div>
+        <button onclick="openCalculatorModal()" class="md:hidden underline font-bold whitespace-nowrap ml-2">Calculadora</button>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- 3. CONTENIDO PRINCIPAL                                                -->
+    <!-- ===================================================================== -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+        <!-- Hero & Filtros -->
+        <section class="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-700 mb-8 transition-colors">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Encuentra tu próximo hogar</h1>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Explora opciones en mapa, chatea directo y agenda citas presenciales o virtuales</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button id="btn-open-publish" onclick="openPublishModal()" class="hidden items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md transition">
+                        <i class="fa-solid fa-file-signature"></i>
+                        <span>Solicitar Publicar</span>
+                    </button>
+                    <button onclick="resetFiltersAndHome()" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> Limpiar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Caja de Filtros -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div class="relative">
+                    <i class="fa-solid fa-location-dot absolute left-3 top-3.5 text-gray-400"></i>
+                    <input type="text" id="filter-location" oninput="applyFilters()" placeholder="Ciudad, sector o zona..." class="w-full pl-9 pr-3 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none">
+                </div>
+
+                <div class="relative">
+                    <i class="fa-solid fa-house absolute left-3 top-3.5 text-gray-400"></i>
+                    <select id="filter-type" onchange="applyFilters()" class="w-full pl-9 pr-3 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none">
+                        <option value="">Todos los Tipos</option>
+                        <option value="Apartamento">Apartamento</option>
+                        <option value="Casa">Casa</option>
+                        <option value="Penthouse">Penthouse</option>
+                        <option value="Studio">Studio / Loft</option>
+                        <option value="Local">Local Comercial</option>
+                    </select>
+                </div>
+
+                <div class="relative">
+                    <i class="fa-solid fa-dollar-sign absolute left-3 top-3.5 text-gray-400"></i>
+                    <input type="number" id="filter-min-price" oninput="applyFilters()" placeholder="Precio Mín." class="w-full pl-9 pr-3 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none">
+                </div>
+
+                <div class="relative">
+                    <i class="fa-solid fa-dollar-sign absolute left-3 top-3.5 text-gray-400"></i>
+                    <input type="number" id="filter-max-price" oninput="applyFilters()" placeholder="Precio Máx." class="w-full pl-9 pr-3 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none">
+                </div>
+
+                <div class="relative">
+                    <i class="fa-solid fa-bed absolute left-3 top-3.5 text-gray-400"></i>
+                    <select id="filter-rooms" onchange="applyFilters()" class="w-full pl-9 pr-3 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none">
+                        <option value="0">Habitaciones (Todas)</option>
+                        <option value="1">1+ Habitación</option>
+                        <option value="2">2+ Habitaciones</option>
+                        <option value="3">3+ Habitaciones</option>
+                        <option value="4">4+ Habitaciones</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Pestañas de Vista -->
+            <div class="mt-5 pt-4 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button id="tab-btn-explore" onclick="switchMainTab('explore')" class="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 text-white shadow-sm transition">
+                        <i class="fa-solid fa-grip mr-1.5"></i> Explorar (<span id="results-count">0</span>)
+                    </button>
+                    <button id="tab-btn-favorites" onclick="switchMainTab('favorites')" class="px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 transition">
+                        <i class="fa-solid fa-heart text-rose-500 mr-1.5"></i> Favoritos (<span id="favorites-count">0</span>)
+                    </button>
+                    <button id="tab-btn-appointments" onclick="switchMainTab('appointments')" class="px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 transition">
+                        <i class="fa-solid fa-calendar-check text-teal-600 mr-1.5"></i> Cita (<span id="appointments-count">0</span>)
+                    </button>
+                    <button id="btn-toggle-map" type="button" onclick="toggleMapSectionVisibility()" class="px-4 py-2 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition">
+                        <i class="fa-solid fa-map-location-dot mr-1.5"></i> <span id="toggle-map-label">Mapa</span>
+                    </button>
+                    <button id="tab-btn-requests" onclick="switchMainTab('requests')" class="hidden px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 transition">
+                        <i class="fa-solid fa-clipboard-list text-amber-500 mr-1.5"></i> Mis Solicitudes (<span id="myrequests-count">0</span>)
+                    </button>
+                    <button id="tab-btn-mylistings" onclick="switchMainTab('mylistings')" class="hidden px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 transition">
+                        <i class="fa-solid fa-building mr-1.5"></i> Mis Publicaciones (<span id="mylistings-count">0</span>)
+                    </button>
+                    <button id="tab-btn-admin" onclick="switchMainTab('admin')" class="hidden px-4 py-2 rounded-xl text-xs font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-200 transition">
+                        <i class="fa-solid fa-shield-halved mr-1.5"></i> Administración (<span id="admin-pending-count-tab">0</span>)
+                    </button>
+                </div>
+                <div class="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                    <span>Moneda: <strong class="currency-unit-label text-teal-600 dark:text-teal-400">USD</strong> (1 USD = RD$<span id="header-rate-badge">60</span>)</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Vista Explorar / Favoritos -->
+        <section id="view-explore" class="space-y-6">
+            <div id="explore-map-card" class="hidden bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <div>
+                        <h2 class="text-base font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-map-location-dot text-teal-600"></i> Mapa Interactivo de Inmuebles
+                        </h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Haz clic en cualquier marcador para ver precio, ubicación o abrir el detalle</p>
+                    </div>
+                    <span id="map-pins-counter" class="text-xs font-bold px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300">0 pines en mapa</span>
+                </div>
+                <div class="h-72 sm:h-80 w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 relative">
+                    <div id="explore-map"></div>
+                </div>
+            </div>
+
+            <div id="properties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            <div id="empty-state" class="hidden text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
+                <i class="fa-solid fa-house-circle-xmark text-5xl text-gray-300 dark:text-gray-600 mb-3"></i>
+                <h3 class="text-lg font-bold text-gray-800 dark:text-white">No hay propiedades que coincidan</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Intenta ajustar los filtros de búsqueda o limpia los criterios.</p>
+            </div>
+        </section>
+
+        <!-- Vista Mis Solicitudes de Publicación -->
+        <section id="view-requests" class="hidden space-y-6">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clipboard-list text-amber-500"></i> Mis Solicitudes de Publicación
+                    </h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Todo inmueble debe llenar el formulario y ser aceptado antes de publicarse</p>
+                </div>
+                <button onclick="openPublishModal()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition">
+                    <i class="fa-solid fa-file-signature mr-1"></i> Nueva Solicitud
+                </button>
+            </div>
+            <div id="my-requests-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </section>
+
+        <!-- Vista Cita (Presenciales y Virtuales) -->
+        <section id="view-appointments" class="hidden space-y-6">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-check text-teal-600"></i> Citas Agendadas (Presenciales y Virtuales)
+                    </h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Revisa tus visitas programadas al inmueble o recorridos virtuales por videollamada</p>
+                </div>
+                <button onclick="openAppointmentModal()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition">
+                    <i class="fa-solid fa-calendar-plus mr-1"></i> Agendar Nueva Cita
+                </button>
+            </div>
+            <div id="appointments-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </section>
+
+        <!-- Vista Mis Publicaciones Aprobadas -->
+        <section id="view-my-listings" class="hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Mis Inmuebles Publicados (Aceptados)</h2>
+                <button onclick="openPublishModal()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition">
+                    <i class="fa-solid fa-file-signature mr-1"></i> Solicitar Nuevo Inmueble
+                </button>
+            </div>
+            <div id="my-listings-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- VISTA PANEL DE ADMINISTRACIÓN (EXCLUSIVO yorielsanchez5@gmail.com)    -->
+        <!-- ===================================================================== -->
+        <section id="view-admin" class="hidden space-y-6">
+            <div class="bg-gradient-to-r from-purple-900 via-slate-900 to-teal-900 text-white rounded-3xl p-6 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-200 text-xs font-bold mb-2">
+                        <i class="fa-solid fa-crown text-amber-300"></i> Acceso Exclusivo de Administrador
+                    </span>
+                    <h2 class="text-2xl font-extrabold">Panel de Control • AlquilaAqui</h2>
+                    <p class="text-xs text-purple-200/80 mt-0.5">Sesión autorizada: <strong id="admin-email-display">yorielsanchez5@gmail.com</strong></p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="openPublishModal()" class="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow transition">
+                        <i class="fa-solid fa-file-signature mr-1"></i> Formulario de Solicitud
+                    </button>
+                    <button onclick="resetDemoProperties()" class="bg-white/10 hover:bg-white/20 text-white font-semibold text-xs px-4 py-2.5 rounded-xl border border-white/15 transition">
+                        <i class="fa-solid fa-database mr-1"></i> Restaurar Base Inicial
+                    </button>
+                </div>
+            </div>
+
+            <!-- Métricas Generales -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div class="text-xs text-gray-400 font-semibold">Solicitudes Pendientes</div>
+                    <div id="admin-stat-pending" class="text-2xl font-extrabold text-amber-500 mt-1">0</div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div class="text-xs text-gray-400 font-semibold">Propiedades Publicadas</div>
+                    <div id="admin-stat-total" class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1">0</div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div class="text-xs text-gray-400 font-semibold">Disponibles</div>
+                    <div id="admin-stat-available" class="text-2xl font-extrabold text-emerald-600 mt-1">0</div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div class="text-xs text-gray-400 font-semibold">Valor Mensual Cartera</div>
+                    <div id="admin-stat-revenue" class="text-2xl font-extrabold text-teal-600 dark:text-teal-400 mt-1">$0</div>
+                </div>
+            </div>
+
+            <!-- Revisión de Solicitudes de Publicación -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-sm p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-user-check text-amber-500"></i> Solicitudes de Publicación por Aceptar
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Revisa los datos enviados en el formulario y acepta para publicar el inmueble</p>
+                    </div>
+                </div>
+                <div id="admin-requests-list" class="space-y-3"></div>
+            </div>
+
+            <!-- Gestión Global de Todos los Inmuebles -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <h3 class="font-extrabold text-base text-gray-900 dark:text-white">Gestión Global de Inmuebles Publicados</h3>
+                    <input type="text" id="admin-search-input" oninput="renderAdminPanel()" placeholder="Filtrar por título, propietario o sector..." class="px-3.5 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs w-full sm:w-72 dark:text-white">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-gray-50 dark:bg-gray-700/60 text-gray-500 dark:text-gray-300 uppercase">
+                            <tr>
+                                <th class="p-3.5">Inmueble</th>
+                                <th class="p-3.5">Propietario</th>
+                                <th class="p-3.5">Precio</th>
+                                <th class="p-3.5">Estado</th>
+                                <th class="p-3.5 text-right">Acciones Admin</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-properties-tbody" class="divide-y divide-gray-100 dark:divide-gray-700"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Registro de Actividad Administrativa -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-extrabold text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-purple-600"></i> Bitácora de Actividad
+                    </h3>
+                    <button onclick="clearAdminLogs()" class="text-xs text-rose-600 hover:underline font-semibold">Limpiar historial</button>
+                </div>
+                <ul id="admin-activity-list" class="space-y-2 text-xs text-gray-600 dark:text-gray-300 max-h-56 overflow-y-auto"></ul>
+            </div>
+        </section>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- 4. MODAL DETALLE DE PROPIEDAD                                        -->
+    <!-- ===================================================================== -->
+    <div id="modal-detail" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-4xl rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+            <div class="relative h-64 sm:h-80 bg-gray-200 dark:bg-gray-700 shrink-0">
+                <img id="detail-main-img" src="" alt="Propiedad" class="w-full h-full object-cover">
+                <button onclick="closeModal('modal-detail')" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+                <div id="detail-status-badge" class="absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white shadow">
+                    Disponible
+                </div>
+                <div id="detail-thumbs" class="absolute bottom-3 left-3 right-3 flex gap-2 overflow-x-auto no-scrollbar"></div>
+            </div>
+
+            <div class="p-5 sm:p-7 overflow-y-auto space-y-5">
+                <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div>
+                        <span id="detail-type" class="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">Apartamento</span>
+                        <h2 id="detail-title" class="text-2xl font-extrabold text-gray-900 dark:text-white mt-0.5"></h2>
+                        <p id="detail-address" class="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-location-dot text-teal-600"></i>
+                            <span></span>
+                        </p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Propietario: <strong id="detail-owner-name" class="text-gray-800 dark:text-gray-200"></strong>
+                        </p>
+                    </div>
+                    <div class="text-left md:text-right">
+                        <div class="text-3xl font-extrabold text-primary-600 dark:text-primary-400" id="detail-price"></div>
+                        <span id="detail-price-meta" class="text-xs text-gray-400 block">Mantenimiento incluido / Mes</span>
+                        <button type="button" onclick="copyPropertySummary()" class="mt-2 inline-flex items-center gap-1.5 text-xs font-bold bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 px-3 py-1.5 rounded-xl hover:bg-teal-100 transition">
+                            <i class="fa-solid fa-share-nodes"></i> Copiar Resumen
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Acciones Principales -->
+                <div class="pt-3 border-t border-b border-gray-100 dark:border-gray-700 py-4 space-y-3">
+                    <div id="detail-registered-actions" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <button onclick="openAppointmentModal(activeProperty.id, 'Presencial')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl text-xs shadow transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-calendar-check"></i> Agendar Cita
+                        </button>
+                        <button onclick="openReportModal(activeProperty.id)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl text-xs shadow transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-flag"></i> Denuncia
+                        </button>
+                        <button onclick="openChatModal(activeProperty.id)" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-xl text-xs shadow transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-comment-dots"></i> Escribir por Chat
+                        </button>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" onclick="openAppointmentModal(activeProperty.id, 'Virtual')" class="bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-bold px-3 py-1.5 rounded-xl hover:bg-indigo-100 transition">
+                                <i class="fa-solid fa-video mr-1"></i> Cita Virtual
+                            </button>
+                            <button type="button" onclick="openContractModal(activeProperty.id)" class="bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 font-bold px-3 py-1.5 rounded-xl hover:bg-teal-100 transition">
+                                <i class="fa-solid fa-file-contract mr-1"></i> Contrato PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="detail-guest-actions" class="hidden bg-amber-50 dark:bg-amber-950/30 p-4 rounded-2xl text-center">
+                        <p class="text-xs text-amber-800 dark:text-amber-300 font-semibold mb-2">Estás en Modo Invitado. Inicia sesión para agendar citas, enviar denuncias o escribir por chat.</p>
+                        <button onclick="logoutUser()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2 rounded-xl">Iniciar sesión ahora</button>
+                    </div>
+                </div>
+
+                <!-- Características -->
+                <div class="grid grid-cols-4 gap-3 bg-gray-50 dark:bg-gray-700/50 p-3.5 rounded-2xl text-center">
+                    <div>
+                        <i class="fa-solid fa-bed text-teal-600 mb-1"></i>
+                        <div class="text-sm font-bold" id="detail-rooms">0</div>
+                        <div class="text-[11px] text-gray-400">Habitaciones</div>
+                    </div>
+                    <div>
+                        <i class="fa-solid fa-bath text-teal-600 mb-1"></i>
+                        <div class="text-sm font-bold" id="detail-baths">0</div>
+                        <div class="text-[11px] text-gray-400">Baños</div>
+                    </div>
+                    <div>
+                        <i class="fa-solid fa-ruler-combined text-teal-600 mb-1"></i>
+                        <div class="text-sm font-bold"><span id="detail-area">0</span> m²</div>
+                        <div class="text-[11px] text-gray-400">Área</div>
+                    </div>
+                    <div>
+                        <i class="fa-solid fa-car text-teal-600 mb-1"></i>
+                        <div class="text-sm font-bold" id="detail-parking">0</div>
+                        <div class="text-[11px] text-gray-400">Parqueos</div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-gray-800 dark:text-white mb-1.5">Descripción</h4>
+                    <p id="detail-desc" class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed"></p>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-gray-800 dark:text-white mb-2">Amenidades e Inclusiones</h4>
+                    <div id="detail-amenities-tags" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <!-- Mapa de Ubicación del Inmueble -->
+                <div>
+                    <h4 class="font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-1.5 text-sm">
+                        <i class="fa-solid fa-map-pin text-teal-600"></i> Ubicación en el Mapa
+                    </h4>
+                    <div class="h-56 w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                        <div id="detail-map"></div>
+                    </div>
+                </div>
+
+                <!-- Notas Personales de Visita -->
+                <div id="detail-visit-notes-box" class="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-gray-800 dark:text-white text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-note-sticky text-amber-500"></i> Mis Notas Personales de Visita
+                        </h4>
+                        <span id="visit-note-saved-badge" class="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold hidden">Guardada</span>
+                    </div>
+                    <textarea id="detail-visit-note-input" rows="2" placeholder="Anota qué revisar en la visita: presión de agua, parqueo, ruido, luz..." class="w-full p-2.5 text-xs bg-amber-50/50 dark:bg-gray-700/60 border border-amber-200 dark:border-gray-600 rounded-xl dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"></textarea>
+                    <button type="button" onclick="saveActivePropertyVisitNote()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-3.5 py-1.5 rounded-xl transition">
+                        Guardar Nota
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- 4B. MODAL DENUNCIA DE INMUEBLE                                        -->
+    <!-- ===================================================================== -->
+    <div id="modal-report" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-flag text-rose-600"></i> Enviar Denuncia
+                </h3>
+                <button onclick="closeModal('modal-report')" class="text-gray-400 hover:text-gray-600 dark:hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="submitReportForm(event)" class="space-y-3.5 text-xs">
+                <div>
+                    <div id="report-prop-title" class="font-bold text-gray-800 dark:text-gray-200 mb-2"></div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Motivo de la denuncia</label>
+                    <select id="report-reason" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                        <option value="Información o precio engañoso">Información o precio engañoso</option>
+                        <option value="Inmueble ya no disponible">Inmueble ya no disponible</option>
+                        <option value="Fotos falsas o duplicadas">Fotos falsas o duplicadas</option>
+                        <option value="Comportamiento sospechoso">Comportamiento sospechoso</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Detalles adicionales</label>
+                    <textarea id="report-details" rows="3" required placeholder="Describe lo ocurrido para revisión del equipo..." class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-1">
+                    <button type="button" onclick="closeModal('modal-report')" class="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 font-bold">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold shadow">Enviar Denuncia</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- 5. MODAL CHAT INTERACTIVO CON PROPIETARIOS                          -->
+    <!-- ===================================================================== -->
+    <div id="modal-chat" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-3xl rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden my-auto flex flex-col max-h-[88vh]">
+            <div class="bg-gradient-to-r from-teal-700 to-slate-900 text-white px-5 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-comments text-teal-300 text-lg"></i>
+                    <div>
+                        <h3 class="font-extrabold text-sm sm:text-base">Chat Interactivo • AlquilaAqui</h3>
+                        <p class="text-[11px] text-teal-100/80">Consulta disponibilidad, coordina visitas o pide enlace de videollamada</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('modal-chat')" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 flex-grow overflow-hidden">
+                <div class="border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-3 overflow-y-auto max-h-44 md:max-h-none space-y-1.5" id="chat-conversations-list"></div>
+
+                <div class="md:col-span-2 flex flex-col justify-between p-4 overflow-hidden">
+                    <div id="chat-active-header" class="pb-2.5 mb-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                        <div>
+                            <div id="chat-prop-title" class="font-bold text-sm text-gray-900 dark:text-white">Selecciona una propiedad</div>
+                            <div id="chat-prop-owner" class="text-[11px] text-teal-600 dark:text-teal-400"></div>
+                        </div>
+                        <button type="button" onclick="openAppointmentForChatProperty()" class="text-[11px] font-bold bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 px-2.5 py-1.5 rounded-xl hover:bg-teal-100 transition">
+                            <i class="fa-solid fa-calendar-plus mr-1"></i> Agendar Cita
+                        </button>
+                    </div>
+
+                    <div id="chat-messages-box" class="flex-grow overflow-y-auto space-y-2.5 pr-1 min-h-[210px] max-h-72"></div>
+
+                    <div class="flex flex-wrap gap-1.5 my-2.5">
+                        <button type="button" onclick="sendQuickChatMessage('¿Sigue disponible el inmueble y cuál es el monto de depósito?')" class="text-[11px] bg-gray-100 dark:bg-gray-700 hover:bg-teal-50 text-gray-700 dark:text-gray-200 px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-600 transition">
+                            ¿Sigue disponible?
+                        </button>
+                        <button type="button" onclick="sendQuickChatMessage('Me gustaría agendar una cita presencial para conocer el inmueble.')" class="text-[11px] bg-gray-100 dark:bg-gray-700 hover:bg-emerald-50 text-gray-700 dark:text-gray-200 px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-600 transition">
+                            Pedir cita presencial
+                        </button>
+                        <button type="button" onclick="sendQuickChatMessage('¿Podemos hacer un recorrido virtual por videollamada?')" class="text-[11px] bg-gray-100 dark:bg-gray-700 hover:bg-indigo-50 text-gray-700 dark:text-gray-200 px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-600 transition">
+                            Pedir recorrido virtual
+                        </button>
+                    </div>
+
+                    <form onsubmit="sendChatMessage(event)" class="flex gap-2">
+                        <input type="text" id="chat-message-input" required placeholder="Escribe tu mensaje..." class="flex-grow px-3.5 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                        <button type="submit" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow transition">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- 6. MODAL AGENDAR CITA (PRESENCIAL O VIRTUAL)                        -->
+    <!-- ===================================================================== -->
+    <div id="modal-appointment" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-lg rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-4 my-auto">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-check text-teal-600"></i> Agendar Cita
+                    </h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Elige si deseas asistir de forma <strong>Presencial</strong> o <strong>Virtual</strong></p>
+                </div>
+                <button onclick="closeModal('modal-appointment')" class="text-gray-400 hover:text-gray-600 dark:hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <form id="appointment-form" onsubmit="submitAppointmentForm(event)" class="space-y-3.5 text-xs">
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Inmueble</label>
+                    <select id="appt-property-select" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white"></select>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Modalidad de la Cita</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <button type="button" id="appt-mode-presencial" onclick="setAppointmentModality('Presencial')" class="py-3 px-3 rounded-xl border-2 border-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold flex items-center justify-center gap-2 transition">
+                            <i class="fa-solid fa-person-walking"></i>
+                            <span>Presencial</span>
+                        </button>
+                        <button type="button" id="appt-mode-virtual" onclick="setAppointmentModality('Virtual')" class="py-3 px-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 font-semibold flex items-center justify-center gap-2 hover:border-indigo-500 transition">
+                            <i class="fa-solid fa-video"></i>
+                            <span>Virtual</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Fecha</label>
+                        <input type="date" id="appt-date" required class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Hora</label>
+                        <input type="time" id="appt-time" required value="10:00" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                    </div>
+                </div>
+
+                <div id="appt-virtual-platform-box" class="hidden">
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Plataforma de Videollamada</label>
+                    <select id="appt-platform" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                        <option value="Google Meet">Google Meet</option>
+                        <option value="Zoom">Zoom</option>
+                        <option value="WhatsApp Video">WhatsApp Video</option>
+                        <option value="FaceTime">FaceTime</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Notas adicionales para la cita</label>
+                    <textarea id="appt-notes" rows="2" placeholder="Ej: Quiero ver el área de lavado y parqueo / Prefiero recorrido en vivo de la sala..." class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('modal-appointment')" class="px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold shadow">Confirmar Cita</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- 7. MODAL CALCULADORA DE PRESUPUESTO Y DEPÓSITOS                       -->
+    <!-- ===================================================================== -->
+    <div id="modal-calculator" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-lg rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-5 my-auto">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-calculator text-teal-600"></i> Calculadora Financiera
+                </h3>
+                <button onclick="closeModal('modal-calculator')" class="text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-5">
+                <div class="bg-primary-50 dark:bg-gray-700/50 p-4 rounded-xl border border-primary-100 dark:border-gray-600">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-primary-100 dark:border-gray-600 text-xs">
+                        <span class="font-bold text-gray-700 dark:text-gray-200">Tasa de cambio (1 USD = RD$):</span>
+                        <div class="flex items-center gap-1.5">
+                            <input type="number" id="calc-exchange-rate" step="0.1" min="1" onchange="updateExchangeRateFromInput(this.value)" class="w-24 px-2 py-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg font-bold dark:text-white">
+                            <span class="text-gray-500 dark:text-gray-400">DOP</span>
+                        </div>
+                    </div>
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-200 mb-1">Tu Ingreso Mensual Neto (<span class="currency-unit-label">USD</span>)</label>
+                    <div class="relative">
+                        <span id="calc-salary-prefix" class="absolute left-3 top-2.5 text-gray-400 font-bold">$</span>
+                        <input type="number" id="calc-salary" oninput="calculateRentBudget()" placeholder="3000" class="w-full pl-8 pr-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:text-white font-bold focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div class="mt-3 flex justify-between items-center text-xs">
+                        <span class="text-gray-500 dark:text-gray-400">Presupuesto Sugerido (Regla 30%):</span>
+                        <span id="calc-suggested-rent" class="text-base font-extrabold text-primary-600 dark:text-primary-400">$0 / mes</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Simular Depósitos para un Alquiler Específico (<span class="currency-unit-label">USD</span>)</label>
+                    <input type="number" id="calc-target-rent" oninput="calculateDepositBreakdown()" placeholder="Ej: 800" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:text-white focus:ring-2 focus:ring-primary-500">
+
+                    <div class="mt-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl p-3.5 space-y-2 text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">2 Meses de Depósito (Garantía):</span>
+                            <span id="calc-dep-guarantee" class="font-bold">$0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">1 Mes por Adelantado:</span>
+                            <span id="calc-dep-advance" class="font-bold">$0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Gastos Legales (10%):</span>
+                            <span id="calc-dep-legal" class="font-bold">$0</span>
+                        </div>
+                        <div class="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-600 text-sm">
+                            <span class="font-bold">Total Inicial Estimado:</span>
+                            <span id="calc-dep-total" class="font-extrabold text-teal-600 dark:text-teal-400">$0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- 8. MODAL FORMULARIO DE SOLICITUD DE PUBLICACIÓN / EDICIÓN           -->
+    <!-- ===================================================================== -->
+    <div id="modal-publish" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
+            <div class="flex items-start justify-between">
+                <div>
+                    <h3 id="publish-modal-title" class="text-lg font-extrabold text-gray-900 dark:text-white">Formulario de Solicitud para Publicar</h3>
+                    <p id="publish-modal-subtitle" class="text-xs text-gray-500 dark:text-gray-400">Completa el formulario. Tu inmueble será revisado y deberá ser <strong>aceptado</strong> para publicarse.</p>
+                </div>
+                <button onclick="closeModal('modal-publish')" class="text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="publish-form" onsubmit="submitPublishForm(event)" class="space-y-3.5 text-xs">
+                <input type="hidden" id="pub-edit-id">
+
+                <!-- Datos del Solicitante (Requeridos para solicitar publicación) -->
+                <div id="request-applicant-section" class="bg-amber-50/70 dark:bg-amber-950/25 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-3.5 space-y-3">
+                    <div class="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-id-card"></i> 1. Datos del Solicitante (Obligatorio para aprobación)
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Nombre del Solicitante *</label>
+                            <input type="text" id="req-applicant-name" required placeholder="Nombre completo" class="w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Teléfono / WhatsApp *</label>
+                            <input type="tel" id="req-applicant-phone" required placeholder="809-000-0000" class="w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Cédula / Documento o Enlace *</label>
+                            <input type="text" id="req-applicant-doc" required placeholder="000-0000000-0 o ref." class="w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Relación con el inmueble *</label>
+                        <select id="req-applicant-relation" class="w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                            <option value="Propietario directo">Propietario directo</option>
+                            <option value="Agente / Corredor autorizado">Agente / Corredor autorizado</option>
+                            <option value="Administrador del inmueble">Administrador del inmueble</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Datos del Inmueble -->
+                <div class="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5 pt-1">
+                    <i class="fa-solid fa-house-circle-check text-teal-600"></i> 2. Información del Inmueble
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="sm:col-span-2">
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Título del Anuncio *</label>
+                        <input type="text" id="pub-title" required placeholder="Ej: Moderno Apartamento en Piantini" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Estado</label>
+                        <select id="pub-status" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                            <option value="Disponible">Disponible</option>
+                            <option value="Reservado">Reservado</option>
+                            <option value="Alquilado">Alquilado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Tipo</label>
+                        <select id="pub-type" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                            <option value="Apartamento">Apartamento</option>
+                            <option value="Casa">Casa</option>
+                            <option value="Penthouse">Penthouse</option>
+                            <option value="Studio">Studio / Loft</option>
+                            <option value="Local">Local Comercial</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Precio Mensual (Base USD) *</label>
+                        <input type="number" id="pub-price" required min="1" placeholder="850" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Sector / Ciudad *</label>
+                        <input type="text" id="pub-sector" required placeholder="Ej: Santiago, Cerros de Gurabo" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-4 gap-3">
+                    <div>
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Habitaciones</label>
+                        <input type="number" id="pub-rooms" min="0" value="2" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Baños</label>
+                        <input type="number" id="pub-baths" min="1" step="0.5" value="2" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Área (m²)</label>
+                        <input type="number" id="pub-area" min="10" value="110" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Parqueos</label>
+                        <input type="number" id="pub-parking" min="0" value="1" class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Subir Fotos desde el Dispositivo (Vista Previa y Principal)</label>
+                    <input type="file" id="pub-file-input" accept="image/*" multiple onchange="handleLocalImageFiles(event)" class="block w-full text-xs text-gray-600 dark:text-gray-300 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl p-1.5">
+                    <div id="pub-image-preview-list" class="mt-2.5 grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">URL Fotos Adicionales (Separadas por comas)</label>
+                    <input type="text" id="pub-images" oninput="refreshPublishImagePreviews()" placeholder="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2, https://..." class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Amenidades</label>
+                    <div class="flex flex-wrap gap-2">
+                        <label class="inline-flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600"><input type="checkbox" class="pub-amenity" value="Seguridad 24/7"> Seguridad 24/7</label>
+                        <label class="inline-flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600"><input type="checkbox" class="pub-amenity" value="Planta Full"> Planta Full</label>
+                        <label class="inline-flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600"><input type="checkbox" class="pub-amenity" value="Piscina"> Piscina</label>
+                        <label class="inline-flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600"><input type="checkbox" class="pub-amenity" value="Gimnasio"> Gimnasio</label>
+                        <label class="inline-flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600"><input type="checkbox" class="pub-amenity" value="Amueblado"> Amueblado</label>
+                        <label class="inline-flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600"><input type="checkbox" class="pub-amenity" value="Pet Friendly"> Pet Friendly</label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Descripción Detallada *</label>
+                    <textarea id="pub-desc" rows="3" required placeholder="Describe la distribución, acabados, cercanía a puntos clave..." class="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white"></textarea>
+                </div>
+
+                <label id="request-declaration-box" class="flex items-start gap-2.5 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-200 dark:border-gray-600 cursor-pointer">
+                    <input type="checkbox" id="req-accept-terms" required class="mt-0.5 rounded text-teal-600 focus:ring-teal-500">
+                    <span class="text-[11px] text-gray-600 dark:text-gray-300 leading-snug">
+                        Declaro que la información proporcionada es verídica y entiendo que el inmueble <strong>no se publicará</strong> hasta que el formulario sea revisado y <strong>aceptado</strong>.
+                    </span>
+                </label>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('modal-publish')" class="px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold">Cancelar</button>
+                    <button type="submit" id="publish-submit-btn" class="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold shadow">Enviar Solicitud de Publicación</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- 9. MODAL COMPARADOR DE INMUEBLES                                      -->
+    <!-- ===================================================================== -->
+    <div id="modal-compare" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-4xl rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-4 my-auto">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-scale-balanced text-teal-600"></i> Comparador de Propiedades
+                </h3>
+                <button onclick="closeModal('modal-compare')" class="text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="compare-table-container" class="overflow-x-auto"></div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- 10. MODAL CONTRATO DE ALQUILER (PDF)                                  -->
+    <!-- ===================================================================== -->
+    <div id="modal-contract" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-4 my-auto">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-extrabold text-gray-900 dark:text-white">Borrador de Contrato de Alquiler</h3>
+                <button onclick="closeModal('modal-contract')" class="text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                    <label class="block font-semibold mb-1">Nombre del Inquilino</label>
+                    <input type="text" id="contract-tenant-input" oninput="document.getElementById('doc-tenant-name').innerText = this.value || 'EL INQUILINO'" placeholder="Nombre completo" class="w-full p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Duración (Meses)</label>
+                    <input type="number" id="contract-months-input" value="12" min="1" oninput="document.getElementById('doc-months').innerText = this.value || '12'" class="w-full p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl dark:text-white">
+                </div>
+            </div>
+
+            <div id="printable-contract" class="bg-white text-gray-900 p-6 rounded-2xl border border-gray-200 text-xs leading-relaxed space-y-3">
+                <h4 class="text-center font-extrabold text-base uppercase border-b pb-2">Contrato de Arrendamiento Urbano</h4>
+                <p>Entre <strong id="doc-owner-name">EL PROPIETARIO</strong>, en lo adelante denominado <strong>EL ARRENDADOR</strong>, y <strong id="doc-tenant-name">EL INQUILINO</strong>, en lo adelante denominado <strong>EL ARRENDATARIO</strong>, se ha convenido el siguiente contrato:</p>
+                <p><strong>PRIMERO (INMUEBLE):</strong> EL ARRENDADOR cede en alquiler el inmueble ubicado en <strong id="doc-property-address">Dirección</strong>.</p>
+                <p><strong>SEGUNDO (CANON MENSUAL):</strong> El precio del alquiler mensual queda fijado en <strong id="doc-property-price">$0 USD</strong>, pagaderos los primeros cinco (5) días de cada mes.</p>
+                <p><strong>TERCERO (DURACIÓN):</strong> El presente contrato tendrá una vigencia de <strong id="doc-months">12</strong> meses contados a partir de la fecha de firma.</p>
+                <div class="grid grid-cols-2 gap-8 pt-8 text-center">
+                    <div class="border-t border-gray-400 pt-1"><strong id="doc-sign-owner">EL PROPIETARIO</strong><br>Arrendador</div>
+                    <div class="border-t border-gray-400 pt-1"><strong>EL INQUILINO</strong><br>Arrendatario</div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button onclick="window.print()" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-800 dark:text-white font-bold text-xs px-4 py-2.5 rounded-xl">
+                    <i class="fa-solid fa-print mr-1"></i> Imprimir
+                </button>
+                <button onclick="downloadContractPDF()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow">
+                    <i class="fa-solid fa-file-pdf mr-1"></i> Descargar PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- 11. MODAL INFORMATIVO (TÉRMINOS / PRIVACIDAD)                         -->
+    <!-- ===================================================================== -->
+    <div id="modal-info" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-lg rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 id="info-modal-title" class="text-lg font-extrabold text-gray-900 dark:text-white">Información</h3>
+                <button onclick="closeModal('modal-info')" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <p id="info-modal-body" class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed"></p>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <!-- ===================================================================== -->
+    <!-- 12. LÓGICA JAVASCRIPT COMPLETA                                        -->
+    <!-- ===================================================================== -->
+    <script>
+        const ADMIN_EMAIL = 'yorielsanchez5@gmail.com';
+        const ADMIN_PASS = 'yoriel2008';
+
+        const FALLBACK_PROPERTY_IMG = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=900&q=80';
+        const TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+        const TILE_ATTRIBUTION = '&copy; OpenStreetMap &copy; CARTO';
+
+        const DEFAULT_PROPERTIES = [
+            {
+                id: 'prop-1',
+                title: 'Apartamento Moderno en Piantini',
+                type: 'Apartamento',
+                price: 1250,
+                location: 'Santo Domingo, Piantini',
+                lat: 18.4685,
+                lng: -69.9367,
+                rooms: 2,
+                baths: 2.5,
+                area: 125,
+                parking: 2,
+                status: 'Disponible',
+                ownerId: 'demo-owner',
+                ownerName: 'Carlos Méndez',
+                images: [
+                    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80',
+                    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80'
+                ],
+                amenities: ['Seguridad 24/7', 'Planta Full', 'Gimnasio', 'Amueblado'],
+                description: 'Amplio apartamento con excelente iluminación natural, balcón panorámico, cocina modular equipada y área social en azotea.'
+            },
+            {
+                id: 'prop-2',
+                title: 'Casa Familiar en Cerros de Gurabo',
+                type: 'Casa',
+                price: 1600,
+                location: 'Santiago de los Caballeros, Cerros de Gurabo',
+                lat: 19.4768,
+                lng: -70.6845,
+                rooms: 4,
+                baths: 3.5,
+                area: 280,
+                parking: 3,
+                status: 'Disponible',
+                ownerId: 'demo-owner',
+                ownerName: 'Laura Fernández',
+                images: [
+                    'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=900&q=80',
+                    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80'
+                ],
+                amenities: ['Seguridad 24/7', 'Piscina', 'Pet Friendly', 'Planta Full'],
+                description: 'Residencia independiente con patio privado, terraza techada, marquesina doble y terminaciones en madera preciosa.'
+            },
+            {
+                id: 'prop-3',
+                title: 'Penthouse con Terraza Privada en Bella Vista',
+                type: 'Penthouse',
+                price: 2100,
+                location: 'Santo Domingo, Bella Vista',
+                lat: 18.4576,
+                lng: -69.9462,
+                rooms: 3,
+                baths: 3.5,
+                area: 240,
+                parking: 2,
+                status: 'Reservado',
+                ownerId: 'demo-owner',
+                ownerName: 'Inmobiliaria Horizonte',
+                images: [
+                    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=900&q=80'
+                ],
+                amenities: ['Seguridad 24/7', 'Planta Full', 'Piscina', 'Gimnasio', 'Amueblado'],
+                description: 'Espectacular penthouse de dos niveles con jacuzzi privado, vista despejada a la ciudad y ascensor privado.'
+            },
+            {
+                id: 'prop-4',
+                title: 'Studio Ejecutivo cerca de la PUCMM',
+                type: 'Studio',
+                price: 550,
+                location: 'Santiago de los Caballeros, La Esmeralda',
+                lat: 19.4422,
+                lng: -70.6828,
+                rooms: 1,
+                baths: 1,
+                area: 55,
+                parking: 1,
+                status: 'Disponible',
+                ownerId: 'demo-owner',
+                ownerName: 'Roberto Gómez',
+                images: [
+                    'https://images.unsplash.com/photo-1536376072261-38c75010e6c9?auto=format&fit=crop&w=900&q=80'
+                ],
+                amenities: ['Seguridad 24/7', 'Amueblado', 'Planta Full'],
+                description: 'Ideal para estudiantes o ejecutivos. Totalmente amueblado, internet de alta velocidad incluido y acceso controlado.'
+            }
+        ];
+
+        let properties = [];
+        let publishRequests = [];
+        let favorites = [];
+        let compareList = [];
+        let visitNotesMap = {};
+        let chatMessagesByProp = {};
+        let appointmentsList = [];
+        let reportsList = [];
+        let adminActivityLog = [];
+        let displayCurrency = 'USD';
+        let exchangeRateDOP = 60;
+        let currentUser = null;
+        let activeProperty = null;
+        let activeChatPropId = null;
+        let activeReportPropId = null;
+        let selectedAppointmentModality = 'Presencial';
+        let currentMainTab = 'explore';
+        let authMode = 'login';
+        let selectedRegisterRole = 'tenant';
+        let uploadedCompressedImages = [];
+        let mapSectionVisible = false;
+
+        let exploreMap = null;
+        let exploreMarkersLayer = null;
+        let detailMap = null;
+        let detailMarker = null;
+
+        // --- Utilidades seguras ---
+        function safeLocalGet(key, fallback = null) {
+            try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+        }
+        function safeLocalSet(key, val) {
+            try { localStorage.setItem(key, val); } catch (e) { console.warn('Storage full:', e); }
+        }
+        function parseJsonSafe(str, fallback) {
+            if (!str) return fallback;
+            try { return JSON.parse(str); } catch { return fallback; }
+        }
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+        function sanitizeUrl(url) {
+            const trimmed = String(url || '').trim();
+            if (!trimmed) return '';
+            if (trimmed.startsWith('data:image/') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+                return trimmed;
+            }
+            return '';
+        }
+
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = 'bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-xl border border-white/10 flex items-center gap-2 transition-all';
+            toast.innerHTML = `<i class="fa-solid fa-circle-info text-teal-400"></i><span>${escapeHtml(msg)}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 3400);
+        }
+
+        function openModal(id) {
+            document.getElementById(id)?.classList.remove('hidden');
+        }
+        function closeModal(id) {
+            document.getElementById(id)?.classList.add('hidden');
+        }
+
+        // --- Tema Oscuro / Claro ---
+        function initTheme() {
+            const savedTheme = safeLocalGet('af_theme', 'light');
+            const isDark = savedTheme === 'dark';
+            document.documentElement.classList.toggle('dark', isDark);
+            updateThemeIcons(isDark);
+        }
+        function toggleDarkMode() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            safeLocalSet('af_theme', isDark ? 'dark' : 'light');
+            updateThemeIcons(isDark);
+        }
+        function updateThemeIcons(isDark) {
+            const cls = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            const icon1 = document.getElementById('theme-icon');
+            const icon2 = document.getElementById('login-theme-icon');
+            if (icon1) icon1.className = cls + ' text-lg';
+            if (icon2) icon2.className = cls;
+        }
+
+        // --- Persistencia ---
+        function loadLocalStorageData() {
+            properties = parseJsonSafe(safeLocalGet('af_properties'), null) || [...DEFAULT_PROPERTIES];
+            publishRequests = parseJsonSafe(safeLocalGet('af_publish_requests'), []);
+            favorites = parseJsonSafe(safeLocalGet('af_favorites'), []);
+            visitNotesMap = parseJsonSafe(safeLocalGet('af_visit_notes'), {});
+            chatMessagesByProp = parseJsonSafe(safeLocalGet('af_chat_messages'), null) || {
+                'prop-1': [
+                    { sender: 'owner', senderName: 'Carlos Méndez', text: '¡Hola! El apartamento en Piantini está disponible para cita presencial o recorrido virtual.', time: 'Hoy' }
+                ],
+                'prop-2': [
+                    { sender: 'owner', senderName: 'Laura Fernández', text: 'Saludos, la casa en Cerros de Gurabo cuenta con piscina y patio amplio.', time: 'Hoy' }
+                ]
+            };
+            appointmentsList = parseJsonSafe(safeLocalGet('af_appointments'), []);
+            reportsList = parseJsonSafe(safeLocalGet('af_reports'), []);
+            adminActivityLog = parseJsonSafe(safeLocalGet('af_admin_activity_log'), []);
+            const savedCurrency = safeLocalGet('af_currency', 'USD');
+            displayCurrency = savedCurrency === 'DOP' ? 'DOP' : 'USD';
+            const savedRate = parseFloat(safeLocalGet('af_exchange_rate', '60'));
+            exchangeRateDOP = (!Number.isNaN(savedRate) && savedRate > 0) ? savedRate : 60;
+        }
+
+        function saveToLocalStorage() {
+            safeLocalSet('af_properties', JSON.stringify(properties));
+            safeLocalSet('af_publish_requests', JSON.stringify(publishRequests));
+            safeLocalSet('af_favorites', JSON.stringify(favorites));
+            safeLocalSet('af_visit_notes', JSON.stringify(visitNotesMap));
+            safeLocalSet('af_chat_messages', JSON.stringify(chatMessagesByProp));
+            safeLocalSet('af_appointments', JSON.stringify(appointmentsList));
+            safeLocalSet('af_reports', JSON.stringify(reportsList));
+            safeLocalSet('af_admin_activity_log', JSON.stringify(adminActivityLog));
+            safeLocalSet('af_currency', displayCurrency);
+            safeLocalSet('af_exchange_rate', String(exchangeRateDOP));
+            if (currentUser) {
+                safeLocalSet('af_current_user', JSON.stringify(currentUser));
+            }
+        }
+
+        function recordAdminAction(text) {
+            adminActivityLog.unshift({ text, date: new Date().toLocaleString('es-DO') });
+            if (adminActivityLog.length > 50) adminActivityLog.pop();
+        }
+
+        // --- Coordenadas en Mapa ---
+        function inferCoordinatesFromLocation(locText, seedId = '') {
+            const lower = String(locText || '').toLowerCase();
+            let baseLat = 19.4517;
+            let baseLng = -70.6970;
+
+            if (lower.includes('piantini')) { baseLat = 18.4685; baseLng = -69.9367; }
+            else if (lower.includes('bella vista')) { baseLat = 18.4576; baseLng = -69.9462; }
+            else if (lower.includes('naco')) { baseLat = 18.4775; baseLng = -69.9325; }
+            else if (lower.includes('santo domingo')) { baseLat = 18.4861; baseLng = -69.9312; }
+            else if (lower.includes('gurabo')) { baseLat = 19.4768; baseLng = -70.6845; }
+            else if (lower.includes('esmeralda') || lower.includes('pucmm')) { baseLat = 19.4422; baseLng = -70.6828; }
+            else if (lower.includes('santiago')) { baseLat = 19.4517; baseLng = -70.6970; }
+
+            let hash = 0;
+            for (let i = 0; i < seedId.length; i++) hash = ((hash << 5) - hash) + seedId.charCodeAt(i);
+            const jitterLat = ((hash % 11) - 5) * 0.0025;
+            const jitterLng = (((hash >> 3) % 11) - 5) * 0.0025;
+            return { lat: baseLat + jitterLat, lng: baseLng + jitterLng };
+        }
+
+        function getPropertyCoords(prop) {
+            if (typeof prop.lat === 'number' && typeof prop.lng === 'number') {
+                return { lat: prop.lat, lng: prop.lng };
+            }
+            return inferCoordinatesFromLocation(prop.location, prop.id || prop.title || '');
+        }
+
+        function initExploreMap() {
+            const mapEl = document.getElementById('explore-map');
+            if (!mapEl || typeof L === 'undefined') return;
+            if (!exploreMap) {
+                exploreMap = L.map('explore-map').setView([19.4517, -70.6970], 8);
+                L.tileLayer(TILE_URL, {
+                    attribution: TILE_ATTRIBUTION,
+                    maxZoom: 19
+                }).addTo(exploreMap);
+                exploreMarkersLayer = L.layerGroup().addTo(exploreMap);
+            }
+            setTimeout(() => { exploreMap.invalidateSize(); }, 150);
+        }
+
+        function updateExploreMapPins(list) {
+            if (!mapSectionVisible) return;
+            initExploreMap();
+            if (!exploreMap || !exploreMarkersLayer) return;
+
+            exploreMarkersLayer.clearLayers();
+            const counter = document.getElementById('map-pins-counter');
+            if (counter) counter.innerText = `${list.length} ${list.length === 1 ? 'pin en mapa' : 'pines en mapa'}`;
+
+            const bounds = [];
+            list.forEach(p => {
+                const { lat, lng } = getPropertyCoords(p);
+                bounds.push([lat, lng]);
+                const marker = L.marker([lat, lng]).addTo(exploreMarkersLayer);
+                marker.bindPopup(`
+                    <div style="min-width:170px">
+                        <strong style="font-size:12px">${escapeHtml(p.title)}</strong><br>
+                        <span style="font-size:11px;color:#0f766e;font-weight:700">${formatPropertyPrice(p.price)}/mes</span><br>
+                        <span style="font-size:10px;color:#666">${escapeHtml(p.location)}</span><br>
+                        <button onclick="openPropertyDetail('${escapeHtml(p.id)}')" style="margin-top:6px;background:#0d9488;color:#fff;border:none;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer">Ver detalle</button>
+                    </div>
+                `);
+            });
+
+            if (bounds.length === 1) {
+                exploreMap.setView(bounds[0], 14);
+            } else if (bounds.length > 1) {
+                exploreMap.fitBounds(bounds, { padding: [35, 35], maxZoom: 14 });
+            }
+        }
+
+        function renderDetailMap(prop) {
+            const mapEl = document.getElementById('detail-map');
+            if (!mapEl || typeof L === 'undefined') return;
+            const { lat, lng } = getPropertyCoords(prop);
+
+            if (!detailMap) {
+                detailMap = L.map('detail-map').setView([lat, lng], 15);
+                L.tileLayer(TILE_URL, {
+                    attribution: TILE_ATTRIBUTION,
+                    maxZoom: 19
+                }).addTo(detailMap);
+                detailMarker = L.marker([lat, lng]).addTo(detailMap);
+            } else {
+                detailMap.setView([lat, lng], 15);
+                detailMarker.setLatLng([lat, lng]);
+            }
+            detailMarker.bindPopup(`<strong>${escapeHtml(prop.title)}</strong><br>${escapeHtml(prop.location)}`);
+            setTimeout(() => { detailMap.invalidateSize(); }, 200);
+        }
+
+        function syncMapButtonUI() {
+            const btn = document.getElementById('btn-toggle-map');
+            const label = document.getElementById('toggle-map-label');
+            if (label) label.innerText = mapSectionVisible ? 'Ocultar Mapa' : 'Mapa';
+            if (btn) {
+                btn.className = mapSectionVisible
+                    ? 'px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 text-white shadow-sm transition'
+                    : 'px-4 py-2 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition';
+            }
+        }
+
+        function toggleMapSectionVisibility() {
+            mapSectionVisible = !mapSectionVisible;
+            const card = document.getElementById('explore-map-card');
+            if (card) card.classList.toggle('hidden', !mapSectionVisible);
+            syncMapButtonUI();
+
+            if (mapSectionVisible) {
+                switchMainTab('explore');
+                applyFilters();
+                setTimeout(() => { exploreMap?.invalidateSize(); }, 200);
+            } else {
+                showToast('Mapa ocultado');
+            }
+        }
+
+        // --- Moneda USD / RD$ ---
+        function convertFromUSD(amountUSD, targetCurrency = displayCurrency) {
+            const num = Number(amountUSD) || 0;
+            return targetCurrency === 'DOP' ? Math.round(num * exchangeRateDOP) : Math.round(num);
+        }
+
+        function convertToUSD(amountInDisplayCurrency, sourceCurrency = displayCurrency) {
+            const num = Number(amountInDisplayCurrency) || 0;
+            return sourceCurrency === 'DOP' ? num / Math.max(1, exchangeRateDOP) : num;
+        }
+
+        function formatPropertyPrice(amountUSD, targetCurrency = displayCurrency) {
+            const converted = convertFromUSD(amountUSD, targetCurrency);
+            return targetCurrency === 'DOP'
+                ? `RD$${converted.toLocaleString()}`
+                : `$${converted.toLocaleString()} USD`;
+        }
+
+        function setDisplayCurrency(currency) {
+            displayCurrency = currency === 'DOP' ? 'DOP' : 'USD';
+            safeLocalSet('af_currency', displayCurrency);
+            syncCurrencyUI();
+            applyFilters();
+            if (activeProperty && !document.getElementById('modal-detail')?.classList.contains('hidden')) {
+                openPropertyDetail(activeProperty.id);
+            }
+            if (!document.getElementById('view-my-listings')?.classList.contains('hidden')) {
+                renderMyListings();
+            }
+            if (!document.getElementById('view-requests')?.classList.contains('hidden')) {
+                renderMyRequests();
+            }
+            if (isAdminUser() && !document.getElementById('view-admin')?.classList.contains('hidden')) {
+                renderAdminPanel();
+            }
+        }
+
+        function updateExchangeRateFromInput(val) {
+            const parsed = parseFloat(val);
+            if (!Number.isNaN(parsed) && parsed > 0) {
+                exchangeRateDOP = parsed;
+                safeLocalSet('af_exchange_rate', String(exchangeRateDOP));
+                syncCurrencyUI();
+                calculateRentBudget();
+                calculateDepositBreakdown();
+                applyFilters();
+                showToast(`Tasa actualizada: 1 USD = RD$${exchangeRateDOP}`);
+            }
+        }
+
+        function syncCurrencyUI() {
+            const usdBtn = document.getElementById('currency-btn-USD');
+            const dopBtn = document.getElementById('currency-btn-DOP');
+            const activeCls = 'px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 text-teal-700 dark:text-teal-300 shadow-sm transition';
+            const inactiveCls = 'px-2.5 py-1 rounded-lg text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition';
+            if (usdBtn) usdBtn.className = displayCurrency === 'USD' ? activeCls : inactiveCls;
+            if (dopBtn) dopBtn.className = displayCurrency === 'DOP' ? activeCls : inactiveCls;
+
+            document.querySelectorAll('.currency-unit-label').forEach(el => {
+                el.textContent = displayCurrency === 'DOP' ? 'RD$ DOP' : 'USD';
+            });
+            const rateBadge = document.getElementById('header-rate-badge');
+            if (rateBadge) rateBadge.textContent = exchangeRateDOP;
+
+            const rateInput = document.getElementById('calc-exchange-rate');
+            if (rateInput && document.activeElement !== rateInput) {
+                rateInput.value = exchangeRateDOP;
+            }
+        }
+
+        // --- Verificación Exclusiva de Administrador ---
+        function isAdminUser() {
+            return Boolean(
+                currentUser &&
+                currentUser.role === 'admin' &&
+                String(currentUser.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()
+            );
+        }
+
+        // --- Autenticación y Pantalla de Login ---
+        function toggleEmailLoginForm(showEmail) {
+            document.getElementById('login-options-panel').classList.toggle('hidden', showEmail);
+            document.getElementById('email-login-form').classList.toggle('hidden', !showEmail);
+            document.getElementById('login-error-msg')?.classList.add('hidden');
+        }
+
+        function switchAuthMode(mode) {
+            authMode = mode;
+            const isRegister = mode === 'register';
+            document.getElementById('register-role-selector').classList.toggle('hidden', !isRegister);
+            document.getElementById('register-name-field').classList.toggle('hidden', !isRegister);
+            document.getElementById('auth-submit-btn').innerText = isRegister ? 'Crear cuenta y entrar' : 'Entrar a AlquilaAqui';
+            document.getElementById('login-error-msg')?.classList.add('hidden');
+
+            const activeTab = 'py-2 rounded-lg bg-white dark:bg-gray-800 text-teal-700 dark:text-teal-300 shadow-sm transition';
+            const inactiveTab = 'py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition';
+            document.getElementById('auth-tab-login').className = !isRegister ? activeTab : inactiveTab;
+            document.getElementById('auth-tab-register').className = isRegister ? activeTab : inactiveTab;
+        }
+
+        function selectLoginRole(role) {
+            selectedRegisterRole = role;
+            const activeRole = 'py-2.5 px-3 rounded-xl border-2 border-teal-600 bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 text-xs font-bold flex items-center justify-center gap-2 transition';
+            const inactiveRole = 'py-2.5 px-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 text-xs font-semibold flex items-center justify-center gap-2 hover:border-teal-500 transition';
+            document.getElementById('role-btn-tenant').className = role === 'tenant' ? activeRole : inactiveRole;
+            document.getElementById('role-btn-owner').className = role === 'owner' ? activeRole : inactiveRole;
+        }
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById('login-pass-input');
+            const icon = document.getElementById('login-eye-icon');
+            const isPass = input.type === 'password';
+            input.type = isPass ? 'text' : 'password';
+            icon.className = isPass ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+        }
+
+        function handleForgotPassword() {
+            showToast('Se ha enviado un enlace de recuperación a tu correo electrónico.');
+        }
+
+        function openInfoModal(type) {
+            const title = document.getElementById('info-modal-title');
+            const body = document.getElementById('info-modal-body');
+            if (type === 'terms') {
+                title.innerText = 'Términos de Servicio';
+                body.innerText = 'Para publicar inmuebles en AlquilaAqui es obligatorio completar el formulario de solicitud y recibir aprobación/aceptación.';
+            } else {
+                title.innerText = 'Políticas de Privacidad';
+                body.innerText = 'Tus datos de sesión, solicitudes, favoritos, citas, denuncias, mensajes y publicaciones se almacenan localmente en tu navegador.';
+            }
+            openModal('modal-info');
+        }
+
+        function completeLoginSession(userObj) {
+            currentUser = userObj;
+            safeLocalSet('af_current_user', JSON.stringify(currentUser));
+            document.getElementById('login-screen').classList.add('hidden');
+            renderUserNav();
+            applyFilters();
+            showToast(`Bienvenido, ${currentUser.name}`);
+        }
+
+        function enterAsGuest() {
+            completeLoginSession({
+                id: 'guest',
+                name: 'Invitado',
+                role: 'guest',
+                email: ''
+            });
+        }
+
+        function loginWithFacebook() {
+            completeLoginSession({
+                id: 'fb-user',
+                name: 'Usuario Facebook',
+                role: 'owner',
+                email: 'usuario@facebook.com'
+            });
+        }
+
+        function submitEmailAuth(event) {
+            event.preventDefault();
+            const emailInput = document.getElementById('login-email-input').value.trim();
+            const passInput = document.getElementById('login-pass-input').value;
+            const nameInput = document.getElementById('login-name-input').value.trim();
+            const errBox = document.getElementById('login-error-msg');
+            errBox.classList.add('hidden');
+
+            if (emailInput.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                if (passInput !== ADMIN_PASS) {
+                    errBox.innerText = 'Contraseña incorrecta para la cuenta de Administrador.';
+                    errBox.classList.remove('hidden');
+                    return;
+                }
+                recordAdminAction('Inicio de sesión del Administrador');
+                saveToLocalStorage();
+                completeLoginSession({
+                    id: 'admin-master',
+                    name: 'Yoriel Sánchez (Admin)',
+                    role: 'admin',
+                    email: ADMIN_EMAIL
+                });
+                return;
+            }
+
+            const displayName = (authMode === 'register' && nameInput)
+                ? nameInput
+                : emailInput.split('@')[0];
+
+            completeLoginSession({
+                id: 'usr-' + emailInput.toLowerCase(),
+                name: displayName,
+                role: authMode === 'register' ? selectedRegisterRole : 'owner',
+                email: emailInput
+            });
+        }
+
+        function logoutUser() {
+            currentUser = null;
+            try { localStorage.removeItem('af_current_user'); } catch {}
+            document.getElementById('login-screen').classList.remove('hidden');
+            toggleEmailLoginForm(false);
+        }
+
+        function isGuestMode() {
+            return !currentUser || currentUser.role === 'guest';
+        }
+
+        function canRequestPublish() {
+            return Boolean(currentUser && !isGuestMode());
+        }
+
+        function hasPublishAccess() {
+            return Boolean(currentUser && (currentUser.role === 'owner' || currentUser.role === 'admin'));
+        }
+
+        function requireRegisteredUser(msg) {
+            if (isGuestMode()) {
+                showToast(msg || 'Inicia sesión para usar esta función.');
+                return false;
+            }
+            return true;
+        }
+
+        function renderUserNav() {
+            const isGuest = isGuestMode();
+            const allowRequestBtn = canRequestPublish();
+            const canPublish = hasPublishAccess();
+            const adminAllowed = isAdminUser();
+
+            document.getElementById('guest-readonly-banner')?.classList.toggle('hidden', !isGuest);
+            document.getElementById('registered-quick-bar')?.classList.toggle('hidden', isGuest);
+
+            const navAdminBtn = document.getElementById('nav-btn-admin');
+            if (navAdminBtn) {
+                navAdminBtn.classList.toggle('hidden', !adminAllowed);
+                navAdminBtn.classList.toggle('flex', adminAllowed);
+            }
+            const tabAdminBtn = document.getElementById('tab-btn-admin');
+            if (tabAdminBtn) {
+                tabAdminBtn.classList.toggle('hidden', !adminAllowed);
+            }
+
+            const reqPubBtn = document.getElementById('btn-open-publish');
+            if (reqPubBtn) {
+                reqPubBtn.classList.toggle('hidden', !allowRequestBtn);
+                reqPubBtn.classList.toggle('flex', allowRequestBtn);
+            }
+
+            const myReqTab = document.getElementById('tab-btn-requests');
+            if (myReqTab) {
+                myReqTab.classList.toggle('hidden', !allowRequestBtn);
+            }
+
+            const myListingsTab = document.getElementById('tab-btn-mylistings');
+            if (myListingsTab) {
+                myListingsTab.classList.toggle('hidden', !canPublish);
+            }
+
+            const nav = document.getElementById('user-nav-container');
+            if (!nav) return;
+
+            if (isGuest) {
+                nav.innerHTML = `
+                    <button onclick="logoutUser()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition">
+                        Iniciar sesión
+                    </button>
+                `;
+            } else {
+                const roleLabel = adminAllowed ? 'Administrador' : (currentUser.role === 'owner' ? 'Propietario' : 'Inquilino');
+                const badgeColor = adminAllowed ? 'text-purple-600 dark:text-purple-400' : 'text-teal-600 dark:text-teal-400';
+                nav.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <div class="hidden sm:flex flex-col text-right leading-tight">
+                            <span class="text-xs font-bold text-gray-800 dark:text-white">${escapeHtml(currentUser.name)}</span>
+                            <span class="text-[10px] ${badgeColor} font-bold">${roleLabel}</span>
+                        </div>
+                        <button onclick="logoutUser()" class="bg-gray-100 dark:bg-gray-700 hover:bg-rose-100 text-gray-700 dark:text-gray-200 hover:text-rose-600 text-xs font-bold px-3 py-2 rounded-xl transition" title="Cerrar sesión">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            updateCounters();
+        }
+
+        function updateCounters() {
+            document.getElementById('favorites-count').innerText = favorites.length;
+            document.getElementById('appointments-count').innerText = appointmentsList.length;
+            document.getElementById('compare-count').innerText = compareList.length;
+            document.getElementById('compare-count').classList.toggle('hidden', compareList.length === 0);
+
+            if (currentUser && !isGuestMode()) {
+                const mineReqs = publishRequests.filter(r => r.applicantUserId === currentUser.id || isAdminUser());
+                document.getElementById('myrequests-count').innerText = mineReqs.length;
+            }
+
+            if (currentUser && hasPublishAccess()) {
+                const mine = properties.filter(p => p.ownerId === currentUser.id || p.ownerId === 'demo-owner');
+                document.getElementById('mylistings-count').innerText = mine.length;
+            }
+
+            const pendingCount = publishRequests.filter(r => r.status === 'Pendiente').length;
+            const tabBadge = document.getElementById('admin-pending-count-tab');
+            if (tabBadge) tabBadge.innerText = pendingCount;
+            const navBadge = document.getElementById('admin-pending-badge-nav');
+            if (navBadge) {
+                navBadge.innerText = pendingCount;
+                navBadge.classList.toggle('hidden', pendingCount === 0);
+            }
+        }
+
+        // --- Navegación Principal y Filtros ---
+        function switchMainTab(tab) {
+            if (tab === 'admin' && !isAdminUser()) {
+                return showToast('Acceso denegado: exclusivo para el administrador.');
+            }
+            if ((tab === 'requests' || tab === 'mylistings') && isGuestMode()) {
+                return showToast('Inicia sesión para ver esta sección.');
+            }
+
+            currentMainTab = tab;
+            const exploreBtn = document.getElementById('tab-btn-explore');
+            const favBtn = document.getElementById('tab-btn-favorites');
+            const apptBtn = document.getElementById('tab-btn-appointments');
+            const reqBtn = document.getElementById('tab-btn-requests');
+            const myBtn = document.getElementById('tab-btn-mylistings');
+            const adminBtn = document.getElementById('tab-btn-admin');
+
+            const activeCls = 'px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 text-white shadow-sm transition';
+            const inactiveCls = 'px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 transition';
+            const adminActiveCls = 'px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-sm transition';
+            const adminInactiveCls = 'px-4 py-2 rounded-xl text-xs font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-200 transition';
+
+            exploreBtn.className = tab === 'explore' ? activeCls : inactiveCls;
+            favBtn.className = tab === 'favorites' ? activeCls : inactiveCls;
+            apptBtn.className = tab === 'appointments' ? activeCls : inactiveCls;
+            if (reqBtn && !reqBtn.classList.contains('hidden')) {
+                reqBtn.className = tab === 'requests' ? activeCls : inactiveCls;
+            }
+            if (myBtn && !myBtn.classList.contains('hidden')) {
+                myBtn.className = tab === 'mylistings' ? activeCls : inactiveCls;
+            }
+            if (adminBtn && !adminBtn.classList.contains('hidden')) {
+                adminBtn.className = tab === 'admin' ? adminActiveCls : adminInactiveCls;
+            }
+            syncMapButtonUI();
+
+            document.getElementById('view-explore').classList.toggle('hidden', tab !== 'explore' && tab !== 'favorites');
+            document.getElementById('view-requests').classList.toggle('hidden', tab !== 'requests');
+            document.getElementById('view-appointments').classList.toggle('hidden', tab !== 'appointments');
+            document.getElementById('view-my-listings').classList.toggle('hidden', tab !== 'mylistings');
+            document.getElementById('view-admin').classList.toggle('hidden', tab !== 'admin');
+
+            if (tab === 'requests') {
+                renderMyRequests();
+            } else if (tab === 'appointments') {
+                renderAppointmentsList();
+            } else if (tab === 'mylistings') {
+                renderMyListings();
+            } else if (tab === 'admin') {
+                renderAdminPanel();
+            } else {
+                applyFilters();
+            }
+        }
+
+        function resetFiltersAndHome() {
+            document.getElementById('filter-location').value = '';
+            document.getElementById('filter-type').value = '';
+            document.getElementById('filter-min-price').value = '';
+            document.getElementById('filter-max-price').value = '';
+            document.getElementById('filter-rooms').value = '0';
+            switchMainTab('explore');
+        }
+
+        function applyFilters() {
+            const loc = document.getElementById('filter-location').value.toLowerCase().trim();
+            const type = document.getElementById('filter-type').value;
+            const rawMin = parseFloat(document.getElementById('filter-min-price').value);
+            const rawMax = parseFloat(document.getElementById('filter-max-price').value);
+            const minPrice = !Number.isNaN(rawMin) ? convertToUSD(rawMin, displayCurrency) : 0;
+            const maxPrice = !Number.isNaN(rawMax) ? convertToUSD(rawMax, displayCurrency) : Infinity;
+            const rooms = parseInt(document.getElementById('filter-rooms').value) || 0;
+
+            let filtered = properties.filter(p => {
+                if (currentMainTab === 'favorites' && !favorites.includes(p.id)) return false;
+                if (loc && !p.location.toLowerCase().includes(loc) && !p.title.toLowerCase().includes(loc)) return false;
+                if (type && p.type !== type) return false;
+                if (p.price < minPrice || p.price > maxPrice) return false;
+                if (rooms > 0 && (Number(p.rooms) || 0) < rooms) return false;
+                return true;
+            });
+
+            document.getElementById('results-count').innerText = filtered.length;
+            renderPropertiesGrid(filtered);
+            updateExploreMapPins(filtered);
+            updateCounters();
+        }
+
+        function renderPropertiesGrid(list) {
+            const grid = document.getElementById('properties-grid');
+            const empty = document.getElementById('empty-state');
+            if (!grid) return;
+
+            if (list.length === 0) {
+                grid.innerHTML = '';
+                empty?.classList.remove('hidden');
+                return;
+            }
+            empty?.classList.add('hidden');
+
+            grid.innerHTML = list.map(p => {
+                const img = (p.images && p.images[0]) || FALLBACK_PROPERTY_IMG;
+                const isFav = favorites.includes(p.id);
+                const isCompared = compareList.includes(p.id);
+                const statusColors = {
+                    'Disponible': 'bg-emerald-600 text-white',
+                    'Reservado': 'bg-amber-500 text-slate-950',
+                    'Alquilado': 'bg-rose-600 text-white'
+                };
+                const badgeCls = statusColors[p.status] || statusColors['Disponible'];
+
+                return `
+                    <article class="property-card bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all duration-200 flex flex-col justify-between">
+                        <div>
+                            <div class="relative h-52 bg-gray-200 dark:bg-gray-700 cursor-pointer" onclick="openPropertyDetail('${escapeHtml(p.id)}')">
+                                <img src="${escapeHtml(img)}" alt="${escapeHtml(p.title)}" class="w-full h-full object-cover">
+                                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold shadow ${badgeCls}">
+                                    ${escapeHtml(p.status || 'Disponible')}
+                                </span>
+                                <span class="absolute bottom-3 left-3 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-black/65 text-white">
+                                    ${escapeHtml(p.type)}
+                                </span>
+                                <div class="absolute top-3 right-3 flex gap-1.5" onclick="event.stopPropagation()">
+                                    <button onclick="toggleCompare('${escapeHtml(p.id)}')" class="w-8 h-8 rounded-full ${isCompared ? 'bg-teal-600 text-white' : 'bg-white/90 text-gray-700'} flex items-center justify-center shadow text-xs transition" title="Comparar">
+                                        <i class="fa-solid fa-scale-balanced"></i>
+                                    </button>
+                                    <button onclick="toggleFavorite('${escapeHtml(p.id)}')" class="w-8 h-8 rounded-full ${isFav ? 'bg-rose-600 text-white' : 'bg-white/90 text-gray-700'} flex items-center justify-center shadow text-xs transition" title="Favorito">
+                                        <i class="fa-solid fa-heart"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="p-4 pb-2">
+                                <h3 onclick="openPropertyDetail('${escapeHtml(p.id)}')" class="font-bold text-gray-900 dark:text-white text-base line-clamp-1 cursor-pointer hover:text-teal-600 transition">
+                                    ${escapeHtml(p.title)}
+                                </h3>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
+                                    <i class="fa-solid fa-location-dot text-teal-600"></i> ${escapeHtml(p.location)}
+                                </p>
+
+                                <div class="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-300 mt-3">
+                                    <span><i class="fa-solid fa-bed text-teal-600 mr-1"></i>${p.rooms} Hab</span>
+                                    <span><i class="fa-solid fa-bath text-teal-600 mr-1"></i>${p.baths} Baños</span>
+                                    <span><i class="fa-solid fa-ruler-combined text-teal-600 mr-1"></i>${p.area} m²</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 pt-3 flex justify-between items-center border-t border-gray-100 dark:border-gray-700/50 mt-2">
+                            <div>
+                                <span class="text-xl font-extrabold text-primary-600 dark:text-primary-400">${formatPropertyPrice(p.price)}</span>
+                                <span class="text-xs text-gray-400">/mes</span>
+                            </div>
+                            <button onclick="openPropertyDetail('${escapeHtml(p.id)}')" class="bg-primary-50 dark:bg-gray-700 hover:bg-primary-100 text-primary-700 dark:text-primary-300 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1">
+                                Ver Detalle <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        // --- Denuncias ---
+        function openReportModal(propId) {
+            if (!requireRegisteredUser('Modo Invitado: inicia sesión para enviar una denuncia.')) return;
+            const prop = properties.find(p => p.id === propId) || activeProperty;
+            if (!prop) return;
+            activeReportPropId = prop.id;
+            document.getElementById('report-prop-title').innerText = `Inmueble: ${prop.title}`;
+            document.getElementById('report-details').value = '';
+            openModal('modal-report');
+        }
+
+        function submitReportForm(event) {
+            event.preventDefault();
+            if (!currentUser || !activeReportPropId) return;
+            const prop = properties.find(p => p.id === activeReportPropId);
+            const reason = document.getElementById('report-reason').value;
+            const details = document.getElementById('report-details').value.trim();
+
+            reportsList.unshift({
+                id: 'rep-' + Date.now(),
+                propertyId: activeReportPropId,
+                propertyTitle: prop?.title || 'Inmueble',
+                userName: currentUser.name,
+                reason,
+                details,
+                date: new Date().toLocaleString('es-DO')
+            });
+            recordAdminAction(`Recibió denuncia en "${prop?.title || 'Inmueble'}" (${reason})`);
+            saveToLocalStorage();
+            closeModal('modal-report');
+            showToast('Denuncia enviada para revisión.');
+        }
+
+        // --- Chat Interactivo ---
+        function openChatModal(propId = null) {
+            if (!requireRegisteredUser('Modo Invitado: inicia sesión para usar el chat interactivo.')) return;
+            activeChatPropId = propId || activeProperty?.id || (properties[0]?.id || null);
+            renderChatModal();
+            openModal('modal-chat');
+        }
+
+        function renderChatModal() {
+            const convList = document.getElementById('chat-conversations-list');
+            if (!convList) return;
+
+            convList.innerHTML = properties.map(p => {
+                const isActive = p.id === activeChatPropId;
+                const msgs = chatMessagesByProp[p.id] || [];
+                const lastMsg = msgs[msgs.length - 1]?.text || 'Iniciar conversación';
+                return `
+                    <button type="button" onclick="selectChatProperty('${escapeHtml(p.id)}')" class="w-full text-left p-2.5 rounded-xl transition ${isActive ? 'bg-teal-600 text-white shadow' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-200'}">
+                        <div class="font-bold text-xs line-clamp-1">${escapeHtml(p.title)}</div>
+                        <div class="text-[10px] opacity-80 line-clamp-1 mt-0.5">${escapeHtml(lastMsg)}</div>
+                    </button>
+                `;
+            }).join('');
+
+            const prop = properties.find(p => p.id === activeChatPropId) || properties[0];
+            if (!prop) return;
+            activeChatPropId = prop.id;
+
+            document.getElementById('chat-prop-title').innerText = prop.title;
+            document.getElementById('chat-prop-owner').innerText = `Propietario: ${prop.ownerName || 'Propietario'} • ${prop.location}`;
+
+            const box = document.getElementById('chat-messages-box');
+            const msgs = chatMessagesByProp[prop.id] || [];
+            if (msgs.length === 0) {
+                box.innerHTML = `<div class="text-center text-xs text-gray-400 py-8">Aún no hay mensajes en este chat. ¡Escribe el primero!</div>`;
+            } else {
+                box.innerHTML = msgs.map(m => {
+                    const mine = m.sender === 'user';
+                    return `
+                        <div class="flex flex-col ${mine ? 'items-end' : 'items-start'}">
+                            <div class="max-w-[82%] px-3.5 py-2 rounded-2xl text-xs ${mine ? 'bg-teal-600 text-white rounded-br-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-bl-sm'}">
+                                <div class="text-[10px] font-bold opacity-75 mb-0.5">${escapeHtml(m.senderName || (mine ? 'Tú' : prop.ownerName || 'Propietario'))}</div>
+                                <div>${escapeHtml(m.text)}</div>
+                            </div>
+                            <span class="text-[9px] text-gray-400 mt-0.5 px-1">${escapeHtml(m.time || '')}</span>
+                        </div>
+                    `;
+                }).join('');
+                box.scrollTop = box.scrollHeight;
+            }
+        }
+
+        function selectChatProperty(propId) {
+            activeChatPropId = propId;
+            renderChatModal();
+        }
+
+        function sendQuickChatMessage(text) {
+            if (!activeChatPropId || !currentUser) return;
+            appendChatMessage(activeChatPropId, text);
+        }
+
+        function sendChatMessage(event) {
+            event.preventDefault();
+            const input = document.getElementById('chat-message-input');
+            const text = (input?.value || '').trim();
+            if (!text || !activeChatPropId || !currentUser) return;
+            appendChatMessage(activeChatPropId, text);
+            input.value = '';
+        }
+
+        function appendChatMessage(propId, text) {
+            if (!chatMessagesByProp[propId]) chatMessagesByProp[propId] = [];
+            const nowLabel = new Date().toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+            chatMessagesByProp[propId].push({
+                sender: 'user',
+                senderName: currentUser.name,
+                text,
+                time: nowLabel
+            });
+
+            const prop = properties.find(p => p.id === propId);
+            const lower = text.toLowerCase();
+            let reply = '¡Gracias por escribir! Con gusto coordinamos tu visita o resolvemos cualquier duda.';
+            if (lower.includes('virtual') || lower.includes('videollamada')) {
+                reply = `Podemos hacer el recorrido virtual por videollamada. Usa el botón "Agendar Cita" eligiendo la opción Virtual.`;
+            } else if (lower.includes('presencial') || lower.includes('cita') || lower.includes('visita')) {
+                reply = `Perfecto, puedes agendar tu cita presencial seleccionando día y hora en el botón "Agendar Cita".`;
+            } else if (lower.includes('disponible')) {
+                reply = `Actualmente el estado del inmueble es "${prop?.status || 'Disponible'}" con canon mensual de ${formatPropertyPrice(prop?.price || 0)}.`;
+            }
+
+            chatMessagesByProp[propId].push({
+                sender: 'owner',
+                senderName: prop?.ownerName || 'Propietario',
+                text: reply,
+                time: nowLabel
+            });
+
+            saveToLocalStorage();
+            renderChatModal();
+        }
+
+        function openAppointmentForChatProperty() {
+            closeModal('modal-chat');
+            openAppointmentModal(activeChatPropId, 'Presencial');
+        }
+
+        // --- Agendar Cita (Presencial o Virtual) ---
+        function openAppointmentModal(propId = null, modality = 'Presencial') {
+            if (!requireRegisteredUser('Modo Invitado: inicia sesión para agendar citas.')) return;
+            const select = document.getElementById('appt-property-select');
+            select.innerHTML = properties.map(p =>
+                `<option value="${escapeHtml(p.id)}">${escapeHtml(p.title)} — ${escapeHtml(p.location)}</option>`
+            ).join('');
+
+            const targetId = propId || activeProperty?.id || (properties[0]?.id || '');
+            if (targetId) select.value = targetId;
+
+            const dateInput = document.getElementById('appt-date');
+            if (dateInput && !dateInput.value) {
+                const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+                dateInput.value = tomorrow;
+            }
+
+            setAppointmentModality(modality);
+            openModal('modal-appointment');
+        }
+
+        function setAppointmentModality(modality) {
+            selectedAppointmentModality = modality === 'Virtual' ? 'Virtual' : 'Presencial';
+            const isVirtual = selectedAppointmentModality === 'Virtual';
+
+            const presBtn = document.getElementById('appt-mode-presencial');
+            const virtBtn = document.getElementById('appt-mode-virtual');
+            const virtualBox = document.getElementById('appt-virtual-platform-box');
+
+            presBtn.className = !isVirtual
+                ? 'py-3 px-3 rounded-xl border-2 border-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold flex items-center justify-center gap-2 transition'
+                : 'py-3 px-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 font-semibold flex items-center justify-center gap-2 hover:border-emerald-500 transition';
+
+            virtBtn.className = isVirtual
+                ? 'py-3 px-3 rounded-xl border-2 border-indigo-600 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center gap-2 transition'
+                : 'py-3 px-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 font-semibold flex items-center justify-center gap-2 hover:border-indigo-500 transition';
+
+            if (virtualBox) virtualBox.classList.toggle('hidden', !isVirtual);
+        }
+
+        function submitAppointmentForm(event) {
+            event.preventDefault();
+            if (!currentUser) return;
+
+            const propId = document.getElementById('appt-property-select').value;
+            const prop = properties.find(p => p.id === propId);
+            const date = document.getElementById('appt-date').value;
+            const time = document.getElementById('appt-time').value;
+            const platform = selectedAppointmentModality === 'Virtual'
+                ? document.getElementById('appt-platform').value
+                : 'En el inmueble';
+            const notes = document.getElementById('appt-notes').value.trim();
+
+            const newAppt = {
+                id: 'appt-' + Date.now(),
+                userId: currentUser.id,
+                userName: currentUser.name,
+                propertyId: propId,
+                propertyTitle: prop?.title || 'Inmueble',
+                propertyLocation: prop?.location || '',
+                ownerName: prop?.ownerName || 'Propietario',
+                modality: selectedAppointmentModality,
+                platform,
+                date,
+                time,
+                notes,
+                status: 'Confirmada'
+            };
+
+            appointmentsList.unshift(newAppt);
+            recordAdminAction(`Agendó cita ${selectedAppointmentModality} para "${newAppt.propertyTitle}" el ${date} a las ${time}`);
+            saveToLocalStorage();
+            updateCounters();
+            closeModal('modal-appointment');
+            document.getElementById('appt-notes').value = '';
+
+            if (currentMainTab === 'appointments') {
+                renderAppointmentsList();
+            }
+            showToast(`Cita ${selectedAppointmentModality} agendada para ${date} a las ${time}.`);
+        }
+
+        function renderAppointmentsList() {
+            const container = document.getElementById('appointments-list-container');
+            if (!container) return;
+
+            if (appointmentsList.length === 0) {
+                container.innerHTML = `
+                    <div class="md:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-10 text-center border border-gray-100 dark:border-gray-700">
+                        <i class="fa-regular fa-calendar-xmark text-4xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                        <p class="text-sm font-bold text-gray-700 dark:text-gray-200">Aún no tienes citas agendadas</p>
+                        <p class="text-xs text-gray-400 mt-1">Abre cualquier propiedad o usa el botón "Agendar Nueva Cita" para elegir entre cita presencial o virtual.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = appointmentsList.map(appt => {
+                const isVirtual = appt.modality === 'Virtual';
+                const badgeCls = isVirtual
+                    ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-300'
+                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300';
+                const iconCls = isVirtual ? 'fa-solid fa-video' : 'fa-solid fa-person-walking';
+
+                return `
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3">
+                        <div>
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${badgeCls}">
+                                    <i class="${iconCls}"></i> Cita ${escapeHtml(appt.modality)}
+                                </span>
+                                <span class="text-[11px] font-bold text-teal-600 dark:text-teal-400">${escapeHtml(appt.status || 'Confirmada')}</span>
+                            </div>
+                            <h3 class="font-extrabold text-base text-gray-900 dark:text-white">${escapeHtml(appt.propertyTitle)}</h3>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">${escapeHtml(appt.propertyLocation)} • Propietario: ${escapeHtml(appt.ownerName)}</p>
+                            <div class="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-gray-700 dark:text-gray-200">
+                                <span><i class="fa-regular fa-calendar text-teal-600 mr-1"></i>${escapeHtml(appt.date)}</span>
+                                <span><i class="fa-regular fa-clock text-teal-600 mr-1"></i>${escapeHtml(appt.time)}</span>
+                                <span><i class="fa-solid fa-laptop-house text-teal-600 mr-1"></i>${escapeHtml(appt.platform)}</span>
+                            </div>
+                            ${appt.notes ? `<p class="mt-2.5 text-xs bg-gray-50 dark:bg-gray-700/50 p-2.5 rounded-xl text-gray-600 dark:text-gray-300">${escapeHtml(appt.notes)}</p>` : ''}
+                        </div>
+                        <div class="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                            <button onclick="openChatModal('${escapeHtml(appt.propertyId)}')" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 transition">
+                                <i class="fa-solid fa-comment-dots mr-1"></i> Chat
+                            </button>
+                            <button onclick="cancelAppointment('${escapeHtml(appt.id)}')" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 transition">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function cancelAppointment(apptId) {
+            appointmentsList = appointmentsList.filter(a => a.id !== apptId);
+            saveToLocalStorage();
+            updateCounters();
+            renderAppointmentsList();
+            showToast('Cita cancelada.');
+        }
+
+        // --- Solicitudes de Publicación y Aprobación ---
+        function approvePublishRequest(requestId) {
+            if (!isAdminUser()) return showToast('Solo el administrador puede aceptar solicitudes.');
+            const reqIdx = publishRequests.findIndex(r => r.id === requestId);
+            if (reqIdx < 0) return;
+
+            const req = publishRequests[reqIdx];
+            if (req.status === 'Aceptada') return showToast('Esta solicitud ya fue aceptada.');
+
+            const newPropId = 'prop-' + Date.now();
+            const coords = inferCoordinatesFromLocation(req.location, newPropId);
+
+            const publishedProp = {
+                id: newPropId,
+                title: req.title,
+                status: req.statusProperty || 'Disponible',
+                type: req.type,
+                price: req.price,
+                location: req.location,
+                lat: coords.lat,
+                lng: coords.lng,
+                rooms: req.rooms,
+                baths: req.baths,
+                area: req.area,
+                parking: req.parking,
+                description: req.description,
+                amenities: req.amenities || [],
+                images: (req.images && req.images.length > 0) ? req.images : [FALLBACK_PROPERTY_IMG],
+                ownerId: req.applicantUserId || currentUser.id,
+                ownerName: req.applicantName || 'Propietario Verificado'
+            };
+
+            properties.unshift(publishedProp);
+            publishRequests[reqIdx] = {
+                ...req,
+                status: 'Aceptada',
+                publishedPropertyId: newPropId,
+                reviewedAt: new Date().toLocaleString('es-DO'),
+                reviewNote: 'Aceptada y publicada por administración.'
+            };
+
+            recordAdminAction(`Aceptó y publicó el inmueble "${req.title}" (Solicitante: ${req.applicantName})`);
+            saveToLocalStorage();
+            updateCounters();
+            applyFilters();
+            renderAdminPanel();
+            if (currentMainTab === 'requests') renderMyRequests();
+            if (currentMainTab === 'mylistings') renderMyListings();
+            showToast(`Solicitud aceptada: "${req.title}" ya está publicada.`);
+        }
+
+        function rejectPublishRequest(requestId) {
+            if (!isAdminUser()) return showToast('Solo el administrador puede rechazar solicitudes.');
+            const reqIdx = publishRequests.findIndex(r => r.id === requestId);
+            if (reqIdx < 0) return;
+
+            const reason = prompt('Motivo del rechazo (opcional):', 'Información incompleta o pendiente de verificación') || 'Rechazada en revisión';
+            publishRequests[reqIdx] = {
+                ...publishRequests[reqIdx],
+                status: 'Rechazada',
+                reviewedAt: new Date().toLocaleString('es-DO'),
+                reviewNote: reason
+            };
+
+            recordAdminAction(`Rechazó solicitud de publicación "${publishRequests[reqIdx].title}" (${reason})`);
+            saveToLocalStorage();
+            updateCounters();
+            renderAdminPanel();
+            if (currentMainTab === 'requests') renderMyRequests();
+            showToast('Solicitud rechazada.');
+        }
+
+        function renderMyRequests() {
+            const container = document.getElementById('my-requests-container');
+            if (!container || !currentUser) return;
+
+            const mine = publishRequests.filter(r => r.applicantUserId === currentUser.id || isAdminUser());
+            if (mine.length === 0) {
+                container.innerHTML = `
+                    <div class="md:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-10 text-center border border-gray-100 dark:border-gray-700">
+                        <i class="fa-regular fa-file-lines text-4xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                        <p class="text-sm font-bold text-gray-700 dark:text-gray-200">No tienes solicitudes de publicación</p>
+                        <p class="text-xs text-gray-400 mt-1">Usa el botón "Solicitar Publicar" para llenar el formulario y esperar aceptación.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = mine.map(r => {
+                const statusMap = {
+                    'Pendiente': 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+                    'Aceptada': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+                    'Rechazada': 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                };
+                const badgeCls = statusMap[r.status] || statusMap['Pendiente'];
+                const img = (r.images && r.images[0]) || FALLBACK_PROPERTY_IMG;
+
+                return `
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3">
+                        <div class="flex gap-3.5">
+                            <img src="${escapeHtml(img)}" class="w-24 h-24 rounded-xl object-cover shrink-0 bg-gray-200">
+                            <div class="min-w-0 flex-grow">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${badgeCls}">${escapeHtml(r.status)}</span>
+                                    <span class="text-[10px] text-gray-400">${escapeHtml(r.submittedAt || '')}</span>
+                                </div>
+                                <h3 class="font-extrabold text-sm text-gray-900 dark:text-white mt-1 line-clamp-1">${escapeHtml(r.title)}</h3>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">${escapeHtml(r.location)} • ${escapeHtml(r.type)}</p>
+                                <p class="text-xs font-bold text-teal-600 dark:text-teal-400 mt-1">${formatPropertyPrice(r.price)}/mes</p>
+                            </div>
+                        </div>
+                        <div class="text-xs bg-gray-50 dark:bg-gray-700/50 p-2.5 rounded-xl text-gray-600 dark:text-gray-300">
+                            <strong>Solicitante:</strong> ${escapeHtml(r.applicantName)} (${escapeHtml(r.applicantRelation)})<br>
+                            <strong>Estado de revisión:</strong> ${escapeHtml(r.reviewNote || (r.status === 'Pendiente' ? 'En espera de ser aceptada para publicarse.' : ''))}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- Panel de Administración Exclusivo ---
+        function renderAdminPanel() {
+            if (!isAdminUser()) return;
+
+            document.getElementById('admin-email-display').innerText = currentUser.email;
+            const pendingList = publishRequests.filter(r => r.status === 'Pendiente');
+            document.getElementById('admin-stat-pending').innerText = pendingList.length;
+
+            const total = properties.length;
+            const available = properties.filter(p => (p.status || 'Disponible') === 'Disponible').length;
+            const totalUSD = properties.reduce((acc, p) => acc + (Number(p.price) || 0), 0);
+
+            document.getElementById('admin-stat-total').innerText = total;
+            document.getElementById('admin-stat-available').innerText = available;
+            document.getElementById('admin-stat-revenue').innerText = formatPropertyPrice(totalUSD);
+
+            const reqBox = document.getElementById('admin-requests-list');
+            if (pendingList.length === 0) {
+                reqBox.innerHTML = `<div class="text-xs text-gray-400 bg-gray-50 dark:bg-gray-700/40 p-4 rounded-xl text-center">No hay solicitudes pendientes por aceptar en este momento.</div>`;
+            } else {
+                reqBox.innerHTML = pendingList.map(r => {
+                    const img = (r.images && r.images[0]) || FALLBACK_PROPERTY_IMG;
+                    return `
+                        <div class="border border-amber-200 dark:border-amber-800/50 bg-amber-50/40 dark:bg-gray-700/40 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div class="flex gap-3.5">
+                                <img src="${escapeHtml(img)}" class="w-20 h-20 rounded-xl object-cover shrink-0 bg-gray-200">
+                                <div class="text-xs space-y-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 font-bold text-[10px]">PENDIENTE</span>
+                                        <span class="font-extrabold text-sm text-gray-900 dark:text-white">${escapeHtml(r.title)}</span>
+                                        <span class="font-bold text-teal-600 dark:text-teal-400">${formatPropertyPrice(r.price)}/mes</span>
+                                    </div>
+                                    <div class="text-gray-600 dark:text-gray-300">
+                                        <strong>Solicitante:</strong> ${escapeHtml(r.applicantName)} • <strong>Tel:</strong> ${escapeHtml(r.applicantPhone)} • <strong>Doc:</strong> ${escapeHtml(r.applicantDoc)}
+                                    </div>
+                                    <div class="text-gray-500 dark:text-gray-400">
+                                        <strong>Sector:</strong> ${escapeHtml(r.location)} • <strong>Tipo:</strong> ${escapeHtml(r.type)} • ${r.rooms} Hab / ${r.baths} Baños / ${r.area} m²
+                                    </div>
+                                    <p class="text-gray-600 dark:text-gray-300 line-clamp-2">${escapeHtml(r.description)}</p>
+                                </div>
+                            </div>
+                            <div class="flex md:flex-col gap-2 shrink-0">
+                                <button onclick="approvePublishRequest('${escapeHtml(r.id)}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow transition flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-check"></i> Aceptar y Publicar
+                                </button>
+                                <button onclick="rejectPublishRequest('${escapeHtml(r.id)}')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-xs px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-xmark"></i> Rechazar
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const search = (document.getElementById('admin-search-input')?.value || '').toLowerCase().trim();
+            const list = properties.filter(p =>
+                !search ||
+                p.title.toLowerCase().includes(search) ||
+                (p.ownerName || '').toLowerCase().includes(search) ||
+                p.location.toLowerCase().includes(search)
+            );
+
+            const tbody = document.getElementById('admin-properties-tbody');
+            tbody.innerHTML = list.map(p => {
+                const statusColors = {
+                    'Disponible': 'bg-emerald-100 text-emerald-800',
+                    'Reservado': 'bg-amber-100 text-amber-800',
+                    'Alquilado': 'bg-rose-100 text-rose-800'
+                };
+                const badge = statusColors[p.status || 'Disponible'] || statusColors['Disponible'];
+
+                return `
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                        <td class="p-3.5">
+                            <div class="font-bold text-gray-900 dark:text-white">${escapeHtml(p.title)}</div>
+                            <div class="text-[11px] text-gray-400">${escapeHtml(p.type)} • ${escapeHtml(p.location)}</div>
+                        </td>
+                        <td class="p-3.5 text-gray-600 dark:text-gray-300">${escapeHtml(p.ownerName || 'Propietario')}</td>
+                        <td class="p-3.5 font-bold text-teal-600 dark:text-teal-400">${formatPropertyPrice(p.price)}/mes</td>
+                        <td class="p-3.5">
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${badge}">${escapeHtml(p.status || 'Disponible')}</span>
+                        </td>
+                        <td class="p-3.5 text-right space-x-1 whitespace-nowrap">
+                            <button onclick="openPropertyDetail('${escapeHtml(p.id)}')" class="px-2.5 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-200 font-semibold">Ver</button>
+                            <button onclick="openPublishModal('${escapeHtml(p.id)}')" class="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold">Editar</button>
+                            <button onclick="quickCyclePropertyStatus('${escapeHtml(p.id)}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 hover:bg-emerald-200 font-semibold" title="Cambiar estado"><i class="fa-solid fa-arrows-rotate"></i></button>
+                            <button onclick="duplicateProperty('${escapeHtml(p.id)}')" class="px-2.5 py-1.5 rounded-lg bg-sky-100 text-sky-800 hover:bg-sky-200 font-semibold" title="Duplicar"><i class="fa-regular fa-copy"></i></button>
+                            <button onclick="deleteProperty('${escapeHtml(p.id)}')" class="px-2.5 py-1.5 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 font-semibold" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const logList = document.getElementById('admin-activity-list');
+            logList.innerHTML = adminActivityLog.length === 0
+                ? '<li class="text-gray-400">No hay acciones registradas todavía.</li>'
+                : adminActivityLog.map(item => `
+                    <li class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/40 px-3 py-2 rounded-xl">
+                        <span>${escapeHtml(item.text)}</span>
+                        <span class="text-[10px] text-gray-400 ml-3 shrink-0">${escapeHtml(item.date)}</span>
+                    </li>
+                `).join('');
+        }
+
+        function resetDemoProperties() {
+            if (!isAdminUser()) return;
+            properties = [...DEFAULT_PROPERTIES];
+            recordAdminAction('Restauró el catálogo inicial de propiedades');
+            saveToLocalStorage();
+            applyFilters();
+            renderAdminPanel();
+            showToast('Base de propiedades inicial restaurada.');
+        }
+
+        function clearAdminLogs() {
+            if (!isAdminUser()) return;
+            adminActivityLog = [];
+            saveToLocalStorage();
+            renderAdminPanel();
+            showToast('Bitácora limpia.');
+        }
+
+        // --- Favoritos y Comparador ---
+        function toggleFavorite(propId) {
+            if (!requireRegisteredUser('Modo Invitado: inicia sesión para guardar favoritos.')) return;
+            const idx = favorites.indexOf(propId);
+            if (idx >= 0) {
+                favorites.splice(idx, 1);
+                showToast('Eliminado de favoritos');
+            } else {
+                favorites.push(propId);
+                showToast('Guardado en favoritos');
+            }
+            saveToLocalStorage();
+            applyFilters();
+        }
+
+        function toggleCompare(propId) {
+            const idx = compareList.indexOf(propId);
+            if (idx >= 0) {
+                compareList.splice(idx, 1);
+            } else {
+                if (compareList.length >= 3) {
+                    return showToast('Puedes comparar hasta 3 propiedades a la vez.');
+                }
+                compareList.push(propId);
+            }
+            updateCounters();
+            applyFilters();
+        }
+
+        function openCompareModal() {
+            const container = document.getElementById('compare-table-container');
+            const items = properties.filter(p => compareList.includes(p.id));
+            if (items.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-500 py-6 text-center">Selecciona el ícono de balanza en hasta 3 propiedades para compararlas aquí.</p>';
+            } else {
+                container.innerHTML = `
+                    <table class="w-full text-xs text-left border-collapse">
+                        <thead>
+                            <tr class="border-b dark:border-gray-700">
+                                <th class="p-2 text-gray-400">Característica</th>
+                                ${items.map(p => `<th class="p-2 font-bold text-gray-900 dark:text-white">${escapeHtml(p.title)}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y dark:divide-gray-700">
+                            <tr><td class="p-2 font-semibold">Precio</td>${items.map(p => `<td class="p-2 font-bold text-teal-600">${formatPropertyPrice(p.price)}/mes</td>`).join('')}</tr>
+                            <tr><td class="p-2 font-semibold">Ubicación</td>${items.map(p => `<td class="p-2">${escapeHtml(p.location)}</td>`).join('')}</tr>
+                            <tr><td class="p-2 font-semibold">Tipo</td>${items.map(p => `<td class="p-2">${escapeHtml(p.type)}</td>`).join('')}</tr>
+                            <tr><td class="p-2 font-semibold">Habitaciones</td>${items.map(p => `<td class="p-2">${p.rooms}</td>`).join('')}</tr>
+                            <tr><td class="p-2 font-semibold">Baños</td>${items.map(p => `<td class="p-2">${p.baths}</td>`).join('')}</tr>
+                            <tr><td class="p-2 font-semibold">Área</td>${items.map(p => `<td class="p-2">${p.area} m²</td>`).join('')}</tr>
+                            <tr><td class="p-2 font-semibold">Estado</td>${items.map(p => `<td class="p-2">${escapeHtml(p.status || 'Disponible')}</td>`).join('')}</tr>
+                        </tbody>
+                    </table>
+                `;
+            }
+            openModal('modal-compare');
+        }
+
+        // --- Detalle de Propiedad, Notas y Copiar Resumen ---
+        function openPropertyDetail(propId) {
+            const p = properties.find(item => item.id === propId);
+            if (!p) return;
+            activeProperty = p;
+
+            const imgs = (p.images && p.images.length > 0) ? p.images : [FALLBACK_PROPERTY_IMG];
+            document.getElementById('detail-main-img').src = imgs[0];
+            document.getElementById('detail-status-badge').innerText = p.status || 'Disponible';
+
+            const thumbs = document.getElementById('detail-thumbs');
+            thumbs.innerHTML = imgs.length > 1
+                ? imgs.map(src => `<img src="${escapeHtml(src)}" onclick="document.getElementById('detail-main-img').src='${escapeHtml(src)}'" class="w-14 h-10 object-cover rounded-lg border-2 border-white cursor-pointer shadow">`).join('')
+                : '';
+
+            document.getElementById('detail-type').innerText = p.type;
+            document.getElementById('detail-title').innerText = p.title;
+            document.getElementById('detail-address').querySelector('span').innerText = p.location;
+            document.getElementById('detail-owner-name').innerText = p.ownerName || 'Propietario';
+            document.getElementById('detail-price').innerText = formatPropertyPrice(p.price);
+            document.getElementById('detail-price-meta').innerText = displayCurrency === 'DOP'
+                ? `Conversión referencial (1 USD = RD$${exchangeRateDOP}) • Base: $${Number(p.price).toLocaleString()} USD/mes`
+                : 'Precio base en USD • Mantenimiento incluido / Mes';
+
+            document.getElementById('detail-rooms').innerText = p.rooms;
+            document.getElementById('detail-baths').innerText = p.baths;
+            document.getElementById('detail-area').innerText = p.area;
+            document.getElementById('detail-parking').innerText = p.parking || 0;
+            document.getElementById('detail-desc').innerText = p.description || '';
+
+            const amenitiesBox = document.getElementById('detail-amenities-tags');
+            amenitiesBox.innerHTML = (p.amenities || []).map(a =>
+                `<span class="px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 text-xs font-semibold border border-teal-200 dark:border-teal-800">${escapeHtml(a)}</span>`
+            ).join('');
+
+            const isGuest = isGuestMode();
+            document.getElementById('detail-registered-actions').classList.toggle('hidden', isGuest);
+            document.getElementById('detail-guest-actions').classList.toggle('hidden', !isGuest);
+            document.getElementById('detail-visit-notes-box').classList.toggle('hidden', isGuest);
+
+            const noteInput = document.getElementById('detail-visit-note-input');
+            const noteBadge = document.getElementById('visit-note-saved-badge');
+            if (!isGuest && currentUser && noteInput) {
+                const userNotes = visitNotesMap[currentUser.id] || {};
+                noteInput.value = userNotes[p.id] || '';
+                if (noteBadge) noteBadge.classList.toggle('hidden', !userNotes[p.id]);
+            }
+
+            openModal('modal-detail');
+            renderDetailMap(p);
+        }
+
+        function copyPropertySummary() {
+            if (!activeProperty) return;
+            const text = `${activeProperty.title} (${activeProperty.type}) — ${activeProperty.location}
+Precio: ${formatPropertyPrice(activeProperty.price)}/mes (Base: $${Number(activeProperty.price).toLocaleString()} USD) • Estado: ${activeProperty.status || 'Disponible'}
+${activeProperty.rooms} Hab • ${activeProperty.baths} Baños • ${activeProperty.area} m²`;
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast('Resumen de la propiedad copiado al portapapeles.');
+            } catch {
+                showToast('No se pudo copiar automáticamente.');
+            }
+        }
+
+        function saveActivePropertyVisitNote() {
+            if (isGuestMode() || !requireRegisteredUser('Modo Invitado: inicia sesión para guardar notas.')) return;
+            if (!activeProperty || !currentUser) return;
+            const noteText = (document.getElementById('detail-visit-note-input')?.value || '').trim();
+            if (!visitNotesMap[currentUser.id]) visitNotesMap[currentUser.id] = {};
+            if (noteText) {
+                visitNotesMap[currentUser.id][activeProperty.id] = noteText;
+            } else {
+                delete visitNotesMap[currentUser.id][activeProperty.id];
+            }
+            saveToLocalStorage();
+            const badge = document.getElementById('visit-note-saved-badge');
+            if (badge) badge.classList.toggle('hidden', !noteText);
+            showToast('Nota personal de visita guardada.');
+        }
+
+        // --- Calculadora ---
+        function openCalculatorModal() {
+            if (!requireRegisteredUser('Modo Invitado: inicia sesión para usar la calculadora.')) return;
+            syncCurrencyUI();
+            openModal('modal-calculator');
+        }
+
+        function calculateRentBudget() {
+            if (isGuestMode()) return;
+            const salary = parseFloat(document.getElementById('calc-salary').value) || 0;
+            const maxRentDisplay = Math.round(salary * 0.30);
+            const prefix = displayCurrency === 'DOP' ? 'RD$' : '$';
+            const suffix = displayCurrency === 'DOP' ? ' DOP' : ' USD';
+            document.getElementById('calc-suggested-rent').innerText = `${prefix}${maxRentDisplay.toLocaleString()}${suffix} / mes`;
+        }
+
+        function calculateDepositBreakdown() {
+            if (isGuestMode()) return;
+            const rent = parseFloat(document.getElementById('calc-target-rent').value) || 0;
+            const guarantee = Math.round(rent * 2);
+            const advance = Math.round(rent * 1);
+            const legal = Math.round(rent * 0.10);
+            const total = guarantee + advance + legal;
+            const prefix = displayCurrency === 'DOP' ? 'RD$' : '$';
+            const suffix = displayCurrency === 'DOP' ? ' DOP' : ' USD';
+
+            document.getElementById('calc-dep-guarantee').innerText = `${prefix}${guarantee.toLocaleString()}${suffix}`;
+            document.getElementById('calc-dep-advance').innerText = `${prefix}${advance.toLocaleString()}${suffix}`;
+            document.getElementById('calc-dep-legal').innerText = `${prefix}${legal.toLocaleString()}${suffix}`;
+            document.getElementById('calc-dep-total').innerText = `${prefix}${total.toLocaleString()}${suffix}`;
+        }
+
+        // --- Contrato PDF ---
+        function openContractModal(propId) {
+            if (!requireRegisteredUser('Modo Invitado: inicia sesión para generar contratos.')) return;
+            const prop = properties.find(p => p.id === propId);
+            if (!prop) return;
+            activeProperty = prop;
+            document.getElementById('doc-owner-name').innerText = prop.ownerName || 'EL PROPIETARIO';
+            document.getElementById('doc-property-address').innerText = `${prop.location} - ${prop.title}`;
+            document.getElementById('doc-property-price').innerText = `${formatPropertyPrice(prop.price)} (${displayCurrency === 'DOP' ? `Ref. $${Number(prop.price).toLocaleString()} USD` : 'Moneda base'})`;
+            document.getElementById('doc-sign-owner').innerText = prop.ownerName || 'EL PROPIETARIO';
+            openModal('modal-contract');
+        }
+
+        function downloadContractPDF() {
+            const element = document.getElementById('printable-contract');
+            if (typeof html2pdf !== 'undefined') {
+                html2pdf().from(element).save(`Contrato_${(activeProperty?.title || 'AlquilaAqui').replace(/\s+/g, '_')}.pdf`);
+            } else {
+                window.print();
+            }
+        }
+
+        // --- Formulario de Solicitud / Edición / Fotos Locales ---
+        function handleLocalImageFiles(event) {
+            const files = Array.from(event.target.files || []);
+            if (files.length === 0) return;
+
+            files.forEach(file => {
+                if (!file.type.startsWith('image/')) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const maxDim = 900;
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > maxDim || height > maxDim) {
+                            if (width > height) {
+                                height = Math.round((height * maxDim) / width);
+                                width = maxDim;
+                            } else {
+                                width = Math.round((width * maxDim) / height);
+                                height = maxDim;
+                            }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+                        uploadedCompressedImages.push(compressedDataUrl);
+                        renderPublishImagePreviews();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+            event.target.value = '';
+        }
+
+        function getCombinedPublishImages() {
+            const urlList = (document.getElementById('pub-images')?.value || '')
+                .split(',')
+                .map(s => sanitizeUrl(s))
+                .filter(Boolean);
+            return [...uploadedCompressedImages, ...urlList];
+        }
+
+        function setPublishImageAsMain(index) {
+            if (index <= 0 || index >= uploadedCompressedImages.length) return;
+            const [selected] = uploadedCompressedImages.splice(index, 1);
+            uploadedCompressedImages.unshift(selected);
+            renderPublishImagePreviews();
+            showToast('Foto establecida como principal.');
+        }
+
+        function removeUploadedPublishImage(index) {
+            uploadedCompressedImages.splice(index, 1);
+            renderPublishImagePreviews();
+        }
+
+        function refreshPublishImagePreviews() {
+            renderPublishImagePreviews();
+        }
+
+        function renderPublishImagePreviews() {
+            const container = document.getElementById('pub-image-preview-list');
+            if (!container) return;
+            const combined = getCombinedPublishImages();
+            if (combined.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = combined.map((src, idx) => {
+                const isLocal = idx < uploadedCompressedImages.length;
+                return `
+                    <div class="relative group rounded-xl overflow-hidden border ${idx === 0 ? 'border-teal-500 ring-2 ring-teal-400' : 'border-gray-200 dark:border-gray-600'} bg-gray-100 dark:bg-gray-700 h-20">
+                        <img src="${escapeHtml(src)}" class="w-full h-full object-cover">
+                        ${idx === 0 ? `<span class="absolute bottom-1 left-1 bg-teal-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">Principal</span>` : ''}
+                        <div class="absolute top-1 right-1 flex gap-1">
+                            ${isLocal && idx > 0 ? `<button type="button" onclick="setPublishImageAsMain(${idx})" class="bg-white/90 text-teal-700 rounded p-1 text-[10px] shadow" title="Hacer principal"><i class="fa-solid fa-star"></i></button>` : ''}
+                            ${isLocal ? `<button type="button" onclick="removeUploadedPublishImage(${idx})" class="bg-rose-600 text-white rounded p-1 text-[10px] shadow" title="Quitar"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openPublishModal(editPropId = null) {
+            if (!canRequestPublish()) return showToast('Inicia sesión para llenar el formulario de solicitud.');
+            const form = document.getElementById('publish-form');
+            form.reset();
+            uploadedCompressedImages = [];
+            document.getElementById('pub-edit-id').value = '';
+            document.querySelectorAll('.pub-amenity').forEach(cb => { cb.checked = false; });
+
+            const isEditingExisting = Boolean(editPropId && hasPublishAccess());
+            document.getElementById('request-applicant-section').classList.toggle('hidden', isEditingExisting);
+            document.getElementById('request-declaration-box').classList.toggle('hidden', isEditingExisting);
+
+            document.getElementById('req-applicant-name').required = !isEditingExisting;
+            document.getElementById('req-applicant-phone').required = !isEditingExisting;
+            document.getElementById('req-applicant-doc').required = !isEditingExisting;
+            document.getElementById('req-accept-terms').required = !isEditingExisting;
+
+            if (isEditingExisting) {
+                const prop = properties.find(p => p.id === editPropId);
+                if (!prop) return;
+                document.getElementById('publish-modal-title').innerText = 'Editar Inmueble Publicado';
+                document.getElementById('publish-modal-subtitle').innerText = 'Actualiza los datos, precio o estado del anuncio.';
+                document.getElementById('publish-submit-btn').innerText = 'Guardar Cambios';
+
+                document.getElementById('pub-edit-id').value = prop.id;
+                document.getElementById('pub-title').value = prop.title || '';
+                document.getElementById('pub-status').value = prop.status || 'Disponible';
+                document.getElementById('pub-type').value = prop.type || 'Apartamento';
+                document.getElementById('pub-price').value = prop.price || '';
+                document.getElementById('pub-sector').value = prop.location || '';
+                document.getElementById('pub-rooms').value = prop.rooms || 1;
+                document.getElementById('pub-baths').value = prop.baths || 1;
+                document.getElementById('pub-area').value = prop.area || 80;
+                document.getElementById('pub-parking').value = prop.parking || 0;
+
+                const existingImgs = prop.images || [];
+                uploadedCompressedImages = existingImgs.filter(u => String(u).startsWith('data:image/'));
+                document.getElementById('pub-images').value = existingImgs.filter(u => !String(u).startsWith('data:image/')).join(', ');
+                renderPublishImagePreviews();
+                document.getElementById('pub-desc').value = prop.description || '';
+
+                document.querySelectorAll('.pub-amenity').forEach(cb => {
+                    cb.checked = (prop.amenities || []).includes(cb.value);
+                });
+            } else {
+                document.getElementById('req-applicant-name').value = currentUser?.name || '';
+                renderPublishImagePreviews();
+                document.getElementById('publish-modal-title').innerText = 'Formulario de Solicitud para Publicar';
+                document.getElementById('publish-modal-subtitle').innerText = 'Llena todos los datos. El inmueble quedará pendiente hasta ser aceptado.';
+                document.getElementById('publish-submit-btn').innerText = 'Enviar Solicitud de Publicación';
+            }
+
+            openModal('modal-publish');
+        }
+
+        function submitPublishForm(event) {
+            event.preventDefault();
+            if (!canRequestPublish() || !currentUser) return;
+
+            const editId = document.getElementById('pub-edit-id').value;
+            const title = document.getElementById('pub-title').value.trim();
+            const status = document.getElementById('pub-status').value;
+            const type = document.getElementById('pub-type').value;
+            const price = parseFloat(document.getElementById('pub-price').value) || 0;
+            const location = document.getElementById('pub-sector').value.trim();
+            const rooms = parseInt(document.getElementById('pub-rooms').value) || 1;
+            const baths = parseFloat(document.getElementById('pub-baths').value) || 1;
+            const area = parseInt(document.getElementById('pub-area').value) || 50;
+            const parking = parseInt(document.getElementById('pub-parking').value) || 0;
+            const desc = document.getElementById('pub-desc').value.trim();
+            const amenities = Array.from(document.querySelectorAll('.pub-amenity:checked')).map(cb => cb.value);
+
+            const combinedImages = getCombinedPublishImages();
+            const images = combinedImages.length > 0 ? combinedImages : [FALLBACK_PROPERTY_IMG];
+            const coords = inferCoordinatesFromLocation(location, editId || title);
+
+            if (editId && hasPublishAccess()) {
+                const idx = properties.findIndex(p => p.id === editId);
+                if (idx >= 0) {
+                    properties[idx] = {
+                        ...properties[idx],
+                        title, status, type, price, location, lat: coords.lat, lng: coords.lng,
+                        rooms, baths, area, parking, description: desc, amenities, images
+                    };
+                    recordAdminAction(`Editó inmueble "${title}"`);
+                    saveToLocalStorage();
+                    closeModal('modal-publish');
+                    applyFilters();
+                    if (currentMainTab === 'mylistings') renderMyListings();
+                    if (isAdminUser() && currentMainTab === 'admin') renderAdminPanel();
+                    showToast('Cambios guardados correctamente.');
+                }
+                return;
+            }
+
+            const applicantName = document.getElementById('req-applicant-name').value.trim();
+            const applicantPhone = document.getElementById('req-applicant-phone').value.trim();
+            const applicantDoc = document.getElementById('req-applicant-doc').value.trim();
+            const applicantRelation = document.getElementById('req-applicant-relation').value;
+
+            const newRequest = {
+                id: 'req-' + Date.now(),
+                applicantUserId: currentUser.id,
+                applicantEmail: currentUser.email || '',
+                applicantName,
+                applicantPhone,
+                applicantDoc,
+                applicantRelation,
+                title,
+                statusProperty: status,
+                type,
+                price,
+                location,
+                rooms,
+                baths,
+                area,
+                parking,
+                description: desc,
+                amenities,
+                images,
+                status: 'Pendiente',
+                submittedAt: new Date().toLocaleString('es-DO'),
+                reviewNote: 'Pendiente de revisión y aceptación para ser publicado.'
+            };
+
+            publishRequests.unshift(newRequest);
+            recordAdminAction(`Nueva solicitud de publicación: "${title}" por ${applicantName}`);
+            saveToLocalStorage();
+            updateCounters();
+            closeModal('modal-publish');
+
+            if (currentMainTab === 'requests') renderMyRequests();
+            if (isAdminUser() && currentMainTab === 'admin') renderAdminPanel();
+            showToast('Solicitud enviada. Tu inmueble será publicado una vez sea aceptado.');
+        }
+
+        function quickCyclePropertyStatus(propId) {
+            if (isGuestMode() || !hasPublishAccess()) return showToast('Acción no autorizada.');
+            const prop = properties.find(p => p.id === propId);
+            if (!prop) return;
+            const order = ['Disponible', 'Reservado', 'Alquilado'];
+            const currentIdx = order.indexOf(prop.status || 'Disponible');
+            prop.status = order[(currentIdx + 1) % order.length];
+            recordAdminAction(`Cambió estado rápido de "${prop.title}" a ${prop.status}`);
+            saveToLocalStorage();
+            applyFilters();
+            if (currentMainTab === 'mylistings') renderMyListings();
+            if (isAdminUser() && currentMainTab === 'admin') renderAdminPanel();
+            showToast(`Estado actualizado a ${prop.status}.`);
+        }
+
+        function duplicateProperty(propId) {
+            if (isGuestMode() || !hasPublishAccess() || !currentUser) return showToast('Acción no autorizada.');
+            const original = properties.find(p => p.id === propId);
+            if (!original) return;
+            const newId = 'prop-' + Date.now();
+            const coords = getPropertyCoords(original);
+            const cloned = {
+                ...original,
+                id: newId,
+                lat: coords.lat + 0.0015,
+                lng: coords.lng + 0.0015,
+                title: `${original.title} (Copia)`,
+                status: 'Disponible',
+                ownerId: currentUser.id,
+                ownerName: currentUser.name
+            };
+            properties.unshift(cloned);
+            recordAdminAction(`Duplicó inmueble "${original.title}" como "${cloned.title}"`);
+            saveToLocalStorage();
+            renderUserNav();
+            applyFilters();
+            if (currentMainTab === 'mylistings') renderMyListings();
+            if (isAdminUser() && currentMainTab === 'admin') renderAdminPanel();
+            showToast(`Inmueble duplicado: "${cloned.title}".`);
+        }
+
+        function deleteProperty(propId) {
+            if (isGuestMode() || !hasPublishAccess()) return;
+            const target = properties.find(p => p.id === propId);
+            properties = properties.filter(p => p.id !== propId);
+            if (target) recordAdminAction(`Eliminó inmueble "${target.title}"`);
+            saveToLocalStorage();
+            applyFilters();
+            if (currentMainTab === 'mylistings') renderMyListings();
+            if (isAdminUser() && currentMainTab === 'admin') renderAdminPanel();
+            showToast('Inmueble eliminado.');
+        }
+
+        function renderMyListings() {
+            const grid = document.getElementById('my-listings-grid');
+            if (!grid || !currentUser) return;
+            const mine = properties.filter(p => p.ownerId === currentUser.id || p.ownerId === 'demo-owner');
+
+            grid.innerHTML = mine.map(p => {
+                const img = (p.images && p.images[0]) || FALLBACK_PROPERTY_IMG;
+                return `
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between">
+                        <div>
+                            <div class="relative h-40 rounded-xl overflow-hidden mb-3">
+                                <img src="${escapeHtml(img)}" class="w-full h-full object-cover">
+                                <span class="absolute top-2 left-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${escapeHtml(p.status || 'Disponible')}</span>
+                            </div>
+                            <h4 class="font-bold text-sm text-gray-900 dark:text-white line-clamp-1">${escapeHtml(p.title)}</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">${escapeHtml(p.location)}</p>
+                            <div class="text-base font-extrabold text-teal-600 dark:text-teal-400 mt-2">${formatPropertyPrice(p.price)}/mes</div>
+                        </div>
+                        <div class="mt-3 pt-2 border-t border-gray-200 dark:border-gray-600 flex flex-wrap gap-1.5">
+                            <button onclick="openPropertyDetail('${escapeHtml(p.id)}')" class="flex-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 text-gray-800 dark:text-white text-xs font-semibold py-1.5 rounded-lg transition">Ver</button>
+                            <button onclick="openPublishModal('${escapeHtml(p.id)}')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold py-1.5 rounded-lg transition">Editar</button>
+                            <button onclick="quickCyclePropertyStatus('${escapeHtml(p.id)}')" class="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 text-xs font-semibold px-2 py-1.5 rounded-lg transition" title="Cambiar estado rápido"><i class="fa-solid fa-arrows-rotate"></i></button>
+                            <button onclick="duplicateProperty('${escapeHtml(p.id)}')" class="bg-sky-100 text-sky-800 hover:bg-sky-200 text-xs font-semibold px-2 py-1.5 rounded-lg transition" title="Duplicar anuncio"><i class="fa-regular fa-copy"></i></button>
+                            <button onclick="openContractModal('${escapeHtml(p.id)}')" class="flex-1 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold py-1.5 rounded-lg transition">Contrato</button>
+                            <button onclick="deleteProperty('${escapeHtml(p.id)}')" class="bg-red-100 text-red-600 hover:bg-red-200 px-2.5 py-1.5 rounded-lg transition"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- Inicialización ---
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                initTheme();
+                loadLocalStorageData();
+                syncCurrencyUI();
+                syncMapButtonUI();
+
+                const savedUser = parseJsonSafe(safeLocalGet('af_current_user'), null);
+                if (savedUser) {
+                    currentUser = savedUser;
+                    document.getElementById('login-screen').classList.add('hidden');
+                }
+
+                renderUserNav();
+                applyFilters();
+            } catch (e) {
+                console.error('Error inicializando AlquilaAqui:', e);
+            }
+        });
+    </script>
+</body>
+</html>
